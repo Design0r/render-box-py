@@ -10,6 +10,7 @@ from render_box.shared.task import Command, SerializedCommand, TaskManager
 def handle_client(connection: Connection, task_manager: TaskManager):
     ip, port = connection.socket.getpeername()
     client = f"{ip}:{port}"
+
     print(f"client {client} connected")
 
     while True:
@@ -19,6 +20,10 @@ def handle_client(connection: Connection, task_manager: TaskManager):
             message = Message(**json_data)
 
             match message.message:
+                case "register_worker":
+                    task_manager.register_worker(message.data)
+                    connection.send(Message(message="success").as_json())
+
                 case "command":
                     ser_cmd = SerializedCommand(**json_data["data"])
                     command = Command.from_json(ser_cmd)

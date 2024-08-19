@@ -1,4 +1,5 @@
 import json
+import socket
 import time
 
 from render_box.server.connection import Connection
@@ -6,10 +7,18 @@ from render_box.shared.message import Message
 from render_box.shared.task import SerializedTask, Task
 
 
+def register_worker(connection: Connection) -> None:
+    worker_name = socket.gethostname()
+    msg = Message(message="register_worker", data={"name": worker_name})
+    connection.send_recv(msg.as_json())
+
+
 def start_worker():
     connection = Connection.client_connection()
     server_address = ("localhost", 65432)
     connection.connect(server_address)
+
+    register_worker(connection)
 
     while True:
         try:

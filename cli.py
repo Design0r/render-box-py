@@ -1,16 +1,16 @@
 from argparse import ArgumentParser, Namespace
 
-from render_box.client.submitter import start_submitter
-from render_box.client.worker import start_worker
-from render_box.server.server import start_server
+import render_box.client.submitter as submitter
+import render_box.client.worker as worker
+import render_box.server.server as server
 
 
 def parse_args() -> Namespace:
     parser = ArgumentParser()
     command = parser.add_subparsers(dest="command")
     command.add_parser("server", help="start server")
-    submitter = command.add_parser("submitter", help="start server")
-    submitter.add_argument("num", type=int, help="number of tasks")
+    submit = command.add_parser("submit", help="start server")
+    submit.add_argument("num", type=int, help="number of tasks")
     command.add_parser("worker", help="start worker")
 
     return parser.parse_args()
@@ -20,11 +20,11 @@ def main() -> int:
     args = parse_args()
 
     if args.command == "server":
-        start_server()
-    elif args.command == "submitter":
-        start_submitter(count=args.num)
+        server.start_server()
+    elif args.command == "submit":
+        submitter.start_submitter(count=args.num)
     elif args.command == "worker":
-        start_worker()
+        worker.start_worker()
 
     return 0
 

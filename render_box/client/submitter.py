@@ -1,6 +1,6 @@
 from render_box.server.connection import Connection
+from render_box.shared.commands import TestCommand
 from render_box.shared.message import Message
-from render_box.shared.task import TestCommand
 
 
 def start_submitter(count: int = 1):
