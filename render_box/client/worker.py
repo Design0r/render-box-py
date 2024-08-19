@@ -1,27 +1,23 @@
 import json
-import socket
 import time
 
+from render_box.server.connection import Connection
 from render_box.shared.message import Message
 from render_box.shared.task import SerializedTask, Task
 
 
 def start_worker():
-    client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-
+    connection = Connection.client_connection()
     server_address = ("localhost", 65432)
-    client_socket.connect(server_address)
+    connection.connect(server_address)
 
     while True:
         try:
             start_time = time.perf_counter()
 
-            message = Message(message="get_task", data=None)
-            client_socket.sendall(message.as_json())
-            response = client_socket.recv(1024).decode("utf-8")
-            json_data = json.loads(response)
-            message = Message(**json_data)
-            print(json_data)
+            message = Message(message="get_task")
+            response = connection.send_recv(message.as_json())
+            message = Message(**json.loads(response))
 
             if message.message == "task":
                 if not message.data:
@@ -42,7 +38,7 @@ def start_worker():
             print("connection to server lost")
             break
 
-    client_socket.close()
+    connection.close()
 
 
 if __name__ == "__main__":

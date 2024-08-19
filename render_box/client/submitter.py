@@ -1,31 +1,27 @@
-import socket
-
+from render_box.server.connection import Connection
 from render_box.shared.message import Message
 from render_box.shared.task import TestCommand
 
 
 def start_submitter(count: int = 1):
-    client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-
+    connection = Connection.client_connection()
     server_address = ("localhost", 65432)
-    client_socket.connect(server_address)
+    connection.connect(server_address)
 
     for _ in range(count):
         try:
             command = TestCommand(5)
-            message = Message(message="command", data=command.serialize())
-            print(message)
+            message = Message.from_command(command)
 
-            client_socket.sendall(message.as_json())
-            client_socket.recv(1024).decode("utf-8")
+            connection.send_recv(message.as_json())
+            print(f"submitted {command}")
 
         except Exception as e:
             print(e)
 
-    close_msg = Message(message="close", data=None)
-    client_socket.sendall(close_msg.as_json())
-    client_socket.recv(1024).decode("utf-8")
-    client_socket.close()
+    close_msg = Message(message="close")
+    connection.send_recv(close_msg.as_json())
+    connection.close()
 
 
 if __name__ == "__main__":

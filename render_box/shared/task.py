@@ -77,8 +77,7 @@ class Task(NamedTuple):
         self.command.run()
 
     def serialize(self) -> SerializedTask:
-        s = SerializedTask(id=self.id, command=self.command.serialize())
-        return s
+        return SerializedTask(id=self.id, command=self.command.serialize())
 
     @classmethod
     def from_json(cls, data: SerializedTask) -> Task:

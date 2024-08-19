@@ -2,18 +2,19 @@ import json
 import socket
 from threading import Thread
 
+from render_box.server.connection import Connection
 from render_box.shared.message import Message
 from render_box.shared.task import Command, SerializedCommand, TaskManager
 
 
-def handle_client(connection: socket.socket, task_manager: TaskManager):
-    ip, port = connection.getpeername()
+def handle_client(connection: Connection, task_manager: TaskManager):
+    ip, port = connection.socket.getpeername()
     client = f"{ip}:{port}"
     print(f"client {client} connected")
 
     while True:
         try:
-            data = connection.recv(1024).decode("utf-8")
+            data = connection.recv()
             json_data = json.loads(data)
             message = Message(**json_data)
 
@@ -22,20 +23,19 @@ def handle_client(connection: socket.socket, task_manager: TaskManager):
                     ser_cmd = SerializedCommand(**json_data["data"])
                     command = Command.from_json(ser_cmd)
                     task_manager.create_task(command)
-                    return_msg = Message(message="task_created", data=None)
-                    connection.sendall(return_msg.as_json())
+                    return_msg = Message(message="task_created")
+                    connection.send(return_msg.as_json())
 
                 case "get_task":
                     task = task_manager.pop_task()
                     if not task:
-                        message = Message(message="no_tasks", data=None)
-                        connection.sendall(message.as_json())
+                        message = Message(message="no_tasks")
+                        connection.send(message.as_json())
                         print(f"{client} asked for task, none exist...")
                         continue
 
-                    message = Message(message="task", data=task.serialize())
-                    print(message.as_json())
-                    connection.sendall(message.as_json())
+                    message = Message.from_task(task)
+                    connection.send(message.as_json())
                     print(f"sending {task} to {client}")
 
                 case "close":
@@ -54,20 +54,19 @@ def handle_client(connection: socket.socket, task_manager: TaskManager):
 
 
 def start_server() -> None:
-    server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server_address = ("localhost", 65432)
-    server_socket.bind(server_address)
-    server_socket.listen(1)
+    server_socket = Connection.server_connection(server_address)
     print("RenderBox server listening on", server_address)
-    server_socket.settimeout(1.0)
 
     task_manager = TaskManager()
 
     while True:
         try:
-            connection, _ = server_socket.accept()
+            connection = server_socket.accept()
             thread = Thread(
-                target=handle_client, args=(connection, task_manager), daemon=True
+                target=handle_client,
+                args=(Connection(connection), task_manager),
+                daemon=True,
             )
             thread.start()
         except socket.timeout:
