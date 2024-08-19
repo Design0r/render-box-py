@@ -2,9 +2,10 @@ import json
 import socket
 from threading import Thread
 
-from render_box.server.connection import Connection
-from render_box.shared.message import Message
-from render_box.shared.task import Command, SerializedCommand, TaskManager
+from ..server.connection import Connection
+from ..shared.commands import Command, SerializedCommand
+from ..shared.message import Message
+from ..shared.task import TaskManager
 
 
 def handle_client(connection: Connection, task_manager: TaskManager):

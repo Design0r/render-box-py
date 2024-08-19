@@ -5,7 +5,7 @@ from collections.abc import Iterable
 from enum import StrEnum
 from typing import Deque, NamedTuple, Optional, TypedDict
 
-from render_box.shared.commands import Command, SerializedCommand
+from ..shared.commands import Command, SerializedCommand
 
 
 class SerializedTask(TypedDict):

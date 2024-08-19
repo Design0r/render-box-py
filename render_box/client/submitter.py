@@ -1,6 +1,6 @@
-from render_box.server.connection import Connection
-from render_box.shared.commands import TestCommand
-from render_box.shared.message import Message
+from ..server.connection import Connection
+from ..shared.commands import TestCommand
+from ..shared.message import Message
 
 
 def start_submitter(count: int = 1):

@@ -2,9 +2,9 @@ import json
 import socket
 import time
 
-from render_box.server.connection import Connection
-from render_box.shared.message import Message
-from render_box.shared.task import SerializedTask, Task
+from ..server.connection import Connection
+from ..shared.message import Message
+from ..shared.task import SerializedTask, Task
 
 
 def register_worker(connection: Connection) -> None:

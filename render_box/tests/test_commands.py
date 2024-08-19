@@ -1,4 +1,6 @@
-from render_box.shared.task import TaskManager, TestCommand
+from render_box.shared.task import TaskManager
+
+from ..shared.commands import TestCommand
 
 
 def main() -> None:
