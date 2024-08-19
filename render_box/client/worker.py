@@ -2,7 +2,8 @@ import json
 import socket
 import time
 
-from render_box.shared.task import Task, init_commands
+from render_box.shared.message import Message
+from render_box.shared.task import SerializedTask, Task
 
 
 def start_worker():
@@ -10,24 +11,27 @@ def start_worker():
 
     server_address = ("localhost", 65432)
     client_socket.connect(server_address)
-    init_commands()
 
     while True:
         try:
             start_time = time.perf_counter()
 
-            message = {"message": "get_task"}
-            json_data = json.dumps(message)
-
-            client_socket.sendall(json_data.encode("utf-8"))
+            message = Message(message="get_task", data=None)
+            client_socket.sendall(message.as_json())
             response = client_socket.recv(1024).decode("utf-8")
             json_data = json.loads(response)
+            message = Message(**json_data)
+            print(json_data)
 
-            if json_data["message"] == "task":
-                command = Task.from_json(json_data["data"])
+            if message.message == "task":
+                if not message.data:
+                    print(f'message {message} has no field "data"')
+                    continue
+
+                command = Task.from_json(SerializedTask(**message.data))
                 command.run()
 
-            elif json_data["message"] == "no_tasks":
+            elif message.message == "no_tasks":
                 print("no task, waiting...")
                 time.sleep(2)
 

@@ -3,11 +3,11 @@ from render_box.shared.task import TaskManager, TestCommand
 
 def main() -> None:
     tm = TaskManager()
-    tm.create_task(TestCommand("hello"))
-    tm.create_task(TestCommand("whats"))
-    tm.create_task(TestCommand("up"))
+    tm.create_task(TestCommand(duration=1))
+    tm.create_task(TestCommand(duration=2))
+    tm.create_task(TestCommand(duration=3))
 
-    t = TestCommand("test")
+    t = TestCommand(duration=4)
     print(t.serialize())
 
     for task in tm.tasks:
