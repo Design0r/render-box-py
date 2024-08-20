@@ -44,6 +44,13 @@ def handle_client(connection: Connection, task_manager: TaskManager):
                     connection.send(message.as_json())
                     print(f"sending {task} to {client}")
 
+                case "all_tasks":
+                    message = Message(
+                        message="all_tasls",
+                        data={"tasks": task_manager.get_all_tasks()},
+                    )
+                    connection.send(message.as_json())
+
                 case "close":
                     print(f"close message from {client}")
                     break

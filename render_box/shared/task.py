@@ -73,6 +73,9 @@ class TaskManager:
         )
         print(f'registered worker: "{worker_name}".')
 
+    def get_all_tasks(self) -> list[SerializedTask]:
+        return [t.serialize() for t in self.tasks]
+
 
 class WorkerState(StrEnum):
     Idle = "idle"
