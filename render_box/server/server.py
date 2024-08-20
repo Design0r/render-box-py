@@ -2,10 +2,11 @@ import json
 import socket
 from threading import Thread
 
+from render_box.server import db
+
 from ..server.connection import Connection
-from ..shared.commands import Command, SerializedCommand
 from ..shared.message import Message
-from ..shared.task import TaskManager
+from ..shared.task import SerializedTask, Task, TaskManager, WorkerMetadata
 
 
 def handle_client(connection: Connection, task_manager: TaskManager):
@@ -22,13 +23,14 @@ def handle_client(connection: Connection, task_manager: TaskManager):
 
             match message.message:
                 case "register_worker":
-                    task_manager.register_worker(message.data)
+                    worker = WorkerMetadata(**message.data)
+                    task_manager.register_worker(worker)
                     connection.send(Message(message="success").as_json())
 
-                case "command":
-                    ser_cmd = SerializedCommand(**json_data["data"])
-                    command = Command.from_json(ser_cmd)
-                    task_manager.create_task(command)
+                case "task":
+                    data = SerializedTask(**json_data["data"])
+                    task = Task.from_json(data)
+                    task_manager.add_task(task)
                     return_msg = Message(message="task_created")
                     connection.send(return_msg.as_json())
 
@@ -51,6 +53,13 @@ def handle_client(connection: Connection, task_manager: TaskManager):
                     )
                     connection.send(message.as_json())
 
+                case "all_workers":
+                    message = Message(
+                        message="all_worker",
+                        data={"worker": task_manager.get_all_worker()},
+                    )
+                    connection.send(message.as_json())
+
                 case "close":
                     print(f"close message from {client}")
                     break
@@ -70,6 +79,8 @@ def start_server() -> None:
     server_address = ("localhost", 65432)
     server_socket = Connection.server_connection(server_address)
     print("RenderBox server listening on", server_address)
+
+    db.init_db()
 
     task_manager = TaskManager()
 

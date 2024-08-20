@@ -4,12 +4,13 @@ import time
 
 from ..server.connection import Connection
 from ..shared.message import Message
-from ..shared.task import SerializedTask, Task
+from ..shared.task import SerializedTask, Task, WorkerMetadata
 
 
 def register_worker(connection: Connection) -> None:
     worker_name = socket.gethostname()
-    msg = Message(message="register_worker", data={"name": worker_name})
+    metadata = WorkerMetadata(worker_name, "idle", time.time(), None)
+    msg = Message(message="register_worker", data=metadata.serialize())
     connection.send_recv(msg.as_json())
 
 

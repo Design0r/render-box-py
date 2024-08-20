@@ -1,3 +1,8 @@
+from time import time
+from uuid import uuid4
+
+from render_box.shared.task import Task
+
 from ..server.connection import Connection
 from ..shared.commands import TestCommand
 from ..shared.message import Message
@@ -11,7 +16,8 @@ def start_submitter(count: int = 1):
     for _ in range(count):
         try:
             command = TestCommand(5)
-            message = Message.from_command(command)
+            task = Task(uuid4(), 50, time(), command)
+            message = Message.from_task(task)
 
             connection.send_recv(message.as_json())
             print(f"submitted {command}")

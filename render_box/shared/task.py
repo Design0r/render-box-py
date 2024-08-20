@@ -1,15 +1,21 @@
 from __future__ import annotations
 
-from collections import deque
+import json
+import time
 from collections.abc import Iterable
 from enum import StrEnum
-from typing import Deque, NamedTuple, Optional, TypedDict
+from typing import Any, NamedTuple, Optional, TypedDict
+from uuid import UUID, uuid4
+
+from render_box.server import db
 
 from ..shared.commands import Command, SerializedCommand
 
 
 class SerializedTask(TypedDict):
-    id: int
+    id: str
+    priority: int
+    timestamp: float
     command: SerializedCommand
 
 
@@ -18,63 +24,69 @@ def class_name_from_repr(name: str):
 
 
 class Task(NamedTuple):
-    id: int
+    id: UUID
+    priority: int
+    timestamp: float
     command: Command
 
     def run(self) -> None:
         self.command.run()
 
     def serialize(self) -> SerializedTask:
-        return SerializedTask(id=self.id, command=self.command.serialize())
+        return SerializedTask(
+            id=str(self.id),
+            priority=self.priority,
+            timestamp=self.timestamp,
+            command=self.command.serialize(),
+        )
+
+    def as_json(self) -> str:
+        return json.dumps(self.serialize())
 
     @classmethod
     def from_json(cls, data: SerializedTask) -> Task:
-        task = Task(id=data["id"], command=Command.from_json(data["command"]))
+        task = Task(
+            id=UUID(data["id"]),
+            priority=data["priority"],
+            timestamp=data["timestamp"],
+            command=Command.from_json(data["command"]),
+        )
         return task
+
+    @classmethod
+    def fields(cls) -> str:
+        return f"({','.join([f.upper() for f in cls._fields])})"
 
 
 class TaskManager:
-    tasks: Deque[Task] = deque()
-    workers: dict[str, WorkerMetadata] = {}
-
     def __init__(self, task: Optional[Task | Iterable[Task]] = None) -> None:
         if task:
             self.add_task(task)
 
     def add_task(self, task: Task | Iterable[Task]) -> None:
         if isinstance(task, Task):
-            self.tasks.append(task)
-        else:
-            self.tasks.extend(task)
-
-    def pop_task(self) -> Optional[Task]:
-        try:
-            task = self.tasks.popleft()
-        except IndexError:
-            task = None
-
-        return task
-
-    def create_task(self, command: Command) -> Task:
-        task = Task(len(self.tasks) + 1, command)
-        self.add_task(task)
-        print(f"created task {task}")
-        return task
-
-    def register_worker(self, data: dict[str, str]) -> None:
-        worker_name = data["name"]
-
-        if worker_name in self.workers:
-            print(f'worker: "{worker_name}" already registered.')
+            db.insert_task(task)
             return
 
-        self.workers[worker_name] = WorkerMetadata(
-            worker_name, WorkerState.Active, None
-        )
-        print(f'registered worker: "{worker_name}".')
+        for t in task:
+            db.insert_task(t)
+
+    def pop_task(self) -> Optional[Task]:
+        pass
+
+    @classmethod
+    def create_task(cls, command: Command, priority: int = 50) -> Task:
+        task = Task(uuid4(), priority, time.time(), command)
+        return task
+
+    def register_worker(self, worker: WorkerMetadata) -> None:
+        db.insert_worker(worker)
 
     def get_all_tasks(self) -> list[SerializedTask]:
-        return [t.serialize() for t in self.tasks]
+        return db.select_all_tasks()
+
+    def get_all_worker(self) -> list[WorkerMetadata]:
+        return db.select_all_worker()
 
 
 class WorkerState(StrEnum):
@@ -85,5 +97,16 @@ class WorkerState(StrEnum):
 
 class WorkerMetadata(NamedTuple):
     name: str
-    state: WorkerState
-    current_task: Optional[Task]
+    state: str
+    timestamp: float
+    task_id: Optional[UUID]
+
+    @classmethod
+    def fields(cls) -> str:
+        return f"({','.join([f.upper() for f in cls._fields])})"
+
+    def serialize(self) -> dict[str, Any]:
+        return self._asdict()
+
+    def as_json(self) -> str:
+        return json.dumps(self.serialize())
