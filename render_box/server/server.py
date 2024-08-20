@@ -46,7 +46,7 @@ def handle_client(connection: Connection, task_manager: TaskManager):
 
                 case "all_tasks":
                     message = Message(
-                        message="all_tasls",
+                        message="all_tasks",
                         data={"tasks": task_manager.get_all_tasks()},
                     )
                     connection.send(message.as_json())

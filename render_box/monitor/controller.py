@@ -2,7 +2,7 @@ import json
 
 from render_box.server.connection import Connection
 from render_box.shared.message import Message
-from render_box.shared.task import SerializedTask, Task
+from render_box.shared.task import SerializedTask
 
 
 class Controller:
@@ -13,7 +13,7 @@ class Controller:
 
     def get_tasks(self) -> dict[str, SerializedTask]:
         msg = Message("all_tasks")
-        response = self.connection.send_recv(msg.as_json())
+        response = self.connection.send_recv(msg.as_json(), buffer_size=10000)
         data = json.loads(response)
 
         return {

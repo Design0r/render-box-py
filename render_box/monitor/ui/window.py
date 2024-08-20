@@ -35,7 +35,7 @@ class TaskModel(QtGui.QStandardItemModel):
         current_row_count = self.rowCount()
 
         seen: set[str] = set()
-        for row in range(current_row_count):
+        for row in range(current_row_count - 1):
             task_id = self.item(row, 0).text()
             seen.add(task_id)
             # task_name = self.item(row, 1).data(self.COMMAND_ROLE)
@@ -54,6 +54,11 @@ class TaskModel(QtGui.QStandardItemModel):
 class TaskWidget(QtWidgets.QTableView):
     def __init__(self):
         super().__init__()
+        self.verticalHeader().setVisible(False)
+        # self.setShowGrid(False)
+        self.setSelectionBehavior(
+            QtWidgets.QAbstractItemView.SelectionBehavior.SelectRows
+        )
 
 
 class Window(QtWidgets.QWidget):
@@ -80,7 +85,6 @@ class Window(QtWidgets.QWidget):
     def _init_layouts(self) -> None:
         self.main_layout = QtWidgets.QVBoxLayout(self)
         self.main_layout.addWidget(self.tasks)
-        self.main_layout.addWidget(QtWidgets.QPushButton("Hello"))
 
     def _init_signals(self) -> None:
         pass

@@ -10,9 +10,9 @@ class Connection:
     def send(self, data: bytes):
         self.socket.sendall(data)
 
-    def send_recv(self, data: bytes) -> str:
+    def send_recv(self, data: bytes, buffer_size: int = 1024) -> str:
         self.socket.sendall(data)
-        response = self.socket.recv(1024).decode("utf-8")
+        response = self.socket.recv(buffer_size).decode("utf-8")
 
         return response
 
