@@ -1,8 +1,15 @@
 [project]
 name = "render-box-py"
 version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "pyside6>=6.7.2",
+]
 
 
-[tool.ruff.lint]
-select = ["E", "F"]
-
+[tool.uv]
+dev-dependencies = [
+    "mypy>=1.11.1",
+]
