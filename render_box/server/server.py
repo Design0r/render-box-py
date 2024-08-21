@@ -1,4 +1,3 @@
-import json
 import socket
 from threading import Thread
 
@@ -18,49 +17,46 @@ def handle_client(connection: Connection, task_manager: TaskManager):
     while True:
         try:
             data = connection.recv()
-            json_data = json.loads(data)
-            message = Message(**json_data)
+            message = Message(**data)
 
             match message.message:
                 case "register_worker":
                     worker = WorkerMetadata(**message.data)
                     task_manager.register_worker(worker)
-                    connection.send(Message(message="success").as_json())
+                    connection.send(Message("success").as_json())
 
                 case "task":
-                    data = SerializedTask(**json_data["data"])
+                    data = SerializedTask(**message.data)
                     task = Task.from_json(data)
                     task_manager.add_task(task)
-                    return_msg = Message(message="task_created")
-                    connection.send(return_msg.as_json())
+                    connection.send(Message("task_created").as_json())
 
                 case "get_task":
                     task = task_manager.pop_task()
                     if not task:
-                        message = Message(message="no_tasks")
-                        connection.send(message.as_json())
+                        connection.send(Message("no_tasks").as_json())
                         print(f"{client} asked for task, none exist...")
                         continue
 
                     message = Message.from_task(task)
                     print(f"sending task to {client}")
                     response = connection.send_recv(message.as_json())
-                    message = Message(**json.loads(response))
+                    message = Message(**response)
                     if message.message == "finished":
                         updated_task = task._replace(state="finished")
                         task_manager.update_task(updated_task)
 
                 case "all_tasks":
                     message = Message(
-                        message="all_tasks",
-                        data={"tasks": task_manager.get_all_tasks()},
+                        "all_tasks",
+                        data=task_manager.get_all_tasks(),
                     )
                     connection.send(message.as_json())
 
                 case "all_workers":
                     message = Message(
-                        message="all_worker",
-                        data={"worker": task_manager.get_all_worker()},
+                        "all_worker",
+                        data=task_manager.get_all_worker(),
                     )
                     connection.send(message.as_json())
 

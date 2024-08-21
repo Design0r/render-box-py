@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import json
 import socket
+from typing import Any
 
 
 class Connection:
@@ -10,14 +12,15 @@ class Connection:
     def send(self, data: bytes):
         self.socket.sendall(data)
 
-    def send_recv(self, data: bytes, buffer_size: int = 1024) -> str:
+    def send_recv(self, data: bytes, buffer_size: int = 1024) -> dict[Any, Any]:
         self.socket.sendall(data)
         response = self.socket.recv(buffer_size).decode("utf-8")
 
-        return response
+        return json.loads(response)
 
-    def recv(self) -> str:
-        return self.socket.recv(1024).decode("utf-8")
+    def recv(self, buffer_size: int = 1024) -> dict[Any, Any]:
+        response = self.socket.recv(buffer_size).decode("utf-8")
+        return json.loads(response)
 
     def close(self) -> None:
         self.socket.close()

@@ -1,6 +1,4 @@
-from datetime import datetime
-from email.utils import format_datetime
-from typing import Iterable, Optional
+from typing import Optional
 
 from PySide6 import QtCore, QtGui, QtWidgets
 
@@ -18,8 +16,6 @@ BG_COLORS = {"dark": QtGui.QColor(20, 20, 20), "light": QtGui.QColor(40, 40, 40)
 
 class TaskModel(QtGui.QStandardItemModel):
     column_labels = ("ID", "Priority", "State", "Tiemstamp", "Command")
-    ID_ROLE = QtCore.Qt.ItemDataRole.UserRole + 1
-    COMMAND_ROLE = QtCore.Qt.ItemDataRole.UserRole + 2
 
     def __init__(self, controller: Controller, parent: Optional[QtCore.QObject] = None):
         super().__init__(parent=parent)
@@ -120,8 +116,6 @@ class LabeledTable(QtWidgets.QWidget):
 
 class WorkerModel(QtGui.QStandardItemModel):
     column_labels = ("Name", "State", "Timestamp", "Task")
-    ID_ROLE = QtCore.Qt.ItemDataRole.UserRole + 1
-    NAME_ROLE = QtCore.Qt.ItemDataRole.UserRole + 2
 
     def __init__(self, controller: Controller, parent: Optional[QtCore.QObject] = None):
         super().__init__(parent=parent)

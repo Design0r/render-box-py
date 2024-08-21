@@ -25,8 +25,8 @@ def start_submitter(count: int = 1):
         except Exception as e:
             print(e)
 
-    close_msg = Message(message="close")
-    connection.send_recv(close_msg.as_json())
+    close_msg = Message("close")
+    connection.send(close_msg.as_json())
     connection.close()
 
 

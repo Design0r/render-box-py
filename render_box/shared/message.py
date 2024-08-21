@@ -8,7 +8,9 @@ import render_box.shared.task as task
 
 class Message(NamedTuple):
     message: str
-    data: Optional[task.SerializedTask | task.SerializedCommand | dict[str, Any]] = None
+    data: Optional[
+        task.SerializedTask | task.SerializedCommand | dict[str, Any] | Any
+    ] = None
 
     def as_json(self, encoding: str = "utf-8") -> bytes:
         return json.dumps(self._asdict()).encode(encoding)

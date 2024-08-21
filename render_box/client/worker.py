@@ -25,9 +25,9 @@ def start_worker():
         try:
             start_time = time.perf_counter()
 
-            message = Message(message="get_task")
+            message = Message("get_task")
             response = connection.send_recv(message.as_json())
-            message = Message(**json.loads(response))
+            message = Message(**response)
 
             if message.message == "task":
                 if not message.data:

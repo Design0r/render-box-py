@@ -1,5 +1,3 @@
-import json
-
 from render_box.server.connection import Connection
 from render_box.shared.message import Message
 from render_box.shared.task import SerializedTask, WorkerMetadata
@@ -13,16 +11,16 @@ class Controller:
 
     def get_tasks(self) -> dict[str, SerializedTask]:
         msg = Message("all_tasks")
-        response = self.connection.send_recv(msg.as_json(), buffer_size=10000)
-        data = json.loads(response)
+        data: dict[str, list[SerializedTask]] = self.connection.send_recv(
+            msg.as_json(), buffer_size=10000
+        )
 
-        return {
-            str(task["id"]): SerializedTask(**task) for task in data["data"]["tasks"]
-        }
+        return {str(task["id"]): SerializedTask(**task) for task in data["data"]}
 
     def get_workers(self) -> dict[str, WorkerMetadata]:
         msg = Message("all_workers")
-        response = self.connection.send_recv(msg.as_json(), buffer_size=10000)
-        data = json.loads(response)
+        data: dict[str, list[WorkerMetadata]] = self.connection.send_recv(
+            msg.as_json(), buffer_size=10000
+        )
 
-        return {worker[0]: WorkerMetadata(*worker) for worker in data["data"]["worker"]}
+        return {worker[0]: WorkerMetadata(*worker) for worker in data["data"]}
