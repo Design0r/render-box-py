@@ -63,9 +63,13 @@ class Task(NamedTuple):
 
 
 class TaskManager:
+    worker: dict[str, WorkerMetadata] = {}
+
     def __init__(self, task: Optional[Task | Iterable[Task]] = None) -> None:
         if task:
             self.add_task(task)
+
+        self.worker = {worker.name: worker for worker in self.get_all_worker()}
 
     def add_task(self, task: Task | Iterable[Task]) -> None:
         if isinstance(task, Task):
@@ -88,6 +92,7 @@ class TaskManager:
         return task
 
     def register_worker(self, worker: WorkerMetadata) -> None:
+        self.worker[worker.name] = worker
         db.insert_worker(worker)
 
     def get_all_tasks(self) -> list[SerializedTask]:
@@ -99,6 +104,9 @@ class TaskManager:
     def update_task(self, task: Task) -> None:
         db.update_task(task)
 
+    def update_worker(self, worker: WorkerMetadata) -> None:
+        db.update_worker(worker)
+
 
 class WorkerState(StrEnum):
     Idle = "idle"
@@ -107,10 +115,11 @@ class WorkerState(StrEnum):
 
 
 class WorkerMetadata(NamedTuple):
+    id: Optional[int]
     name: str
     state: str
     timestamp: float
-    task_id: Optional[UUID]
+    task_id: Optional[str]
 
     @classmethod
     def fields(cls) -> str:

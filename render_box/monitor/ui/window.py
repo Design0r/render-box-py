@@ -10,6 +10,8 @@ STATE_COLORS = {
     "waiting": QtGui.QColor("white"),
     "progress": QtGui.QColor("green"),
     "finished": QtGui.QColor(77, 134, 196),
+    "idle": QtGui.QColor("white"),
+    "working": QtGui.QColor("green"),
 }
 BG_COLORS = {"dark": QtGui.QColor(20, 20, 20), "light": QtGui.QColor(40, 40, 40)}
 
@@ -115,7 +117,7 @@ class LabeledTable(QtWidgets.QWidget):
 
 
 class WorkerModel(QtGui.QStandardItemModel):
-    column_labels = ("Name", "State", "Timestamp", "Task")
+    column_labels = ("ID", "Name", "State", "Timestamp", "Task")
 
     def __init__(self, controller: Controller, parent: Optional[QtCore.QObject] = None):
         super().__init__(parent=parent)
@@ -129,17 +131,22 @@ class WorkerModel(QtGui.QStandardItemModel):
             self.setHeaderData(idx, QtCore.Qt.Orientation.Horizontal, label)
 
     def add_row(self, worker: WorkerMetadata) -> None:
+        row_idx = self.rowCount()
+        bg_col = BG_COLORS["light"] if row_idx % 2 == 0 else BG_COLORS["dark"]
         columns: tuple[str, ...] = (
+            str(worker.id),
             worker.name,
             worker.state,
             format_timestamp(worker.timestamp),
-            str(worker.task_id),
+            str(worker.task_id) or "",
         )
 
         row: list[QtGui.QStandardItem] = []
         for col in columns:
             item = QtGui.QStandardItem(col)
             item.setEditable(False)
+            item.setForeground(STATE_COLORS[worker.state])
+            item.setBackground(bg_col)
             row.append(item)
 
         self.appendRow(row)
@@ -149,17 +156,35 @@ class WorkerModel(QtGui.QStandardItemModel):
         for worker in workers.values():
             self.add_row(worker)
 
+    def set_row_color(self, color: QtGui.QColor, row: int) -> None:
+        bg_col = BG_COLORS["light"] if row % 2 == 0 else BG_COLORS["dark"]
+        for col in range(self.columnCount()):
+            item = self.item(row, col)
+            if item:
+                item.setForeground(color)
+                item.setBackground(bg_col)
+
     def refresh(self) -> None:
         workers = self.controller.get_workers()
         current_row_count = self.rowCount()
 
         seen: set[str] = set()
-        for row in range(current_row_count - 1):
+        for row in range(current_row_count):
             worker_id = self.item(row, 0).text()
             seen.add(worker_id)
             worker = workers.get(worker_id)
             if not worker:
                 self.removeRow(row)
+                continue
+
+            status_item = self.item(row, 2)
+            task_item = self.item(row, 4)
+
+            if status_item.text() != worker.state or task_item.text() != worker.task_id:
+                status_item.setText(worker.state)
+                task_item.setText(str(worker.task_id))
+
+                self.set_row_color(STATE_COLORS[worker.state], row)
 
         for id, worker in workers.items():
             if id in seen:
@@ -216,4 +241,5 @@ class Window(QtWidgets.QWidget):
     def _init_signals(self) -> None:
         self.timer = QtCore.QTimer(self)
         self.timer.timeout.connect(self.task_model.refresh)
+        self.timer.timeout.connect(self.worker_model.refresh)
         self.timer.start(2000)

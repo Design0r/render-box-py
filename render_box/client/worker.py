@@ -9,7 +9,7 @@ from ..shared.task import SerializedTask, Task, WorkerMetadata
 
 def register_worker(connection: Connection) -> None:
     worker_name = socket.gethostname()
-    metadata = WorkerMetadata(worker_name, "idle", time.time(), None)
+    metadata = WorkerMetadata(None, worker_name, "idle", time.time(), None)
     msg = Message(message="register_worker", data=metadata.serialize())
     connection.send_recv(msg.as_json())
 

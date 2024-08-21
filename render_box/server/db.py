@@ -4,7 +4,6 @@ import json
 import sqlite3
 from pathlib import Path
 from typing import Optional
-from uuid import UUID
 
 import render_box.shared.commands as commands
 import render_box.shared.task as task
@@ -43,20 +42,17 @@ class DBConnection:
 
 def insert_task(task: task.Task) -> None:
     with DBConnection() as conn:
-        try:
-            conn.execute(
-                "INSERT INTO tasks(id, priority, state, timestamp, data) VALUES (?, ?, ?,?, ?);",
-                (
-                    str(task.id),
-                    task.priority,
-                    task.state,
-                    task.timestamp,
-                    json.dumps(task.command.serialize()),
-                ),
-            )
-            conn.commit()
-        except Exception as e:
-            print(e)
+        conn.execute(
+            "INSERT INTO tasks(id, priority, state, timestamp, data) VALUES (?, ?, ?,?, ?);",
+            (
+                str(task.id),
+                task.priority,
+                task.state,
+                task.timestamp,
+                json.dumps(task.command.serialize()),
+            ),
+        )
+        conn.commit()
 
 
 def select_next_task() -> Optional[task.SerializedTask]:
@@ -102,9 +98,8 @@ WITH selected_task AS (
 
 def update_task(task: task.Task) -> None:
     with DBConnection() as conn:
-        try:
-            conn.execute(
-                """
+        conn.execute(
+            """
  UPDATE tasks
     SET 
         priority = ?,
@@ -114,29 +109,49 @@ def update_task(task: task.Task) -> None:
     WHERE 
         id = ?;
 """,
-                (
-                    task.priority,
-                    json.dumps(task.command.serialize()),
-                    task.state,
-                    task.timestamp,
-                    str(task.id),
-                ),
-            )
-            conn.commit()
-        except Exception as e:
-            print(e)
+            (
+                task.priority,
+                json.dumps(task.command.serialize()),
+                task.state,
+                task.timestamp,
+                str(task.id),
+            ),
+        )
+        conn.commit()
+
+
+def update_worker(worker: task.WorkerMetadata) -> None:
+    print(worker.id)
+    with DBConnection() as conn:
+        conn.execute(
+            """
+ UPDATE workers
+    SET 
+        name = ?,
+        state = ?,
+        timestamp = ?,
+        task_id = ?
+    WHERE 
+        id = ?;
+""",
+            (
+                worker.name,
+                worker.state,
+                worker.timestamp,
+                worker.task_id,
+                worker.id,
+            ),
+        )
+        conn.commit()
 
 
 def insert_worker(worker: task.WorkerMetadata) -> None:
     with DBConnection() as conn:
-        try:
-            conn.execute(
-                f"INSERT INTO workers{worker.fields()} VALUES (?, ?,?, ?);",
-                (worker.name, worker.state, worker.timestamp, worker.task_id),
-            )
-            conn.commit()
-        except Exception as e:
-            print(e)
+        conn.execute(
+            "INSERT INTO workers(name, state, timestamp, task_id) VALUES (?, ?, ?, ?);",
+            (worker.name, worker.state, worker.timestamp, worker.task_id),
+        )
+        conn.commit()
 
 
 def select_all_tasks() -> list[task.SerializedTask]:
@@ -164,30 +179,18 @@ def select_all_tasks() -> list[task.SerializedTask]:
 def select_all_worker() -> list[task.WorkerMetadata]:
     worker: list[task.WorkerMetadata] = []
     with DBConnection() as conn:
-        try:
-            cursor = conn.execute("SELECT * FROM workers;")
-            for _, name, _, time, state, task_id in cursor.fetchall():
-                w = task.WorkerMetadata(
-                    name=name,
-                    state=state,
-                    timestamp=time,
-                    task_id=UUID(task_id) if task_id else None,
-                )
-                worker.append(w)
-
-        except Exception as e:
-            print(e)
+        cursor = conn.execute("SELECT * FROM workers;")
+        for id, name, _, time, state, task_id in cursor.fetchall():
+            w = task.WorkerMetadata(
+                id,
+                name=name,
+                state=state,
+                timestamp=time,
+                task_id=task_id,
+            )
+            worker.append(w)
 
     return worker
-
-
-# def delete(table: Tables, data: DBSchema) -> None:
-#     with DBConnection() as conn:
-#         try:
-#             conn.execute(f"DELETE FROM {table.name} WHERE NAME = '{data.name}';")
-#             conn.commit()
-#         except Exception as e:
-#             print(e)
 
 
 def init_db():
@@ -199,18 +202,17 @@ def init_db():
     path.parent.mkdir(exist_ok=True)
 
     with DBConnection() as conn:
-        try:
-            conn.execute(
-                """CREATE TABLE IF NOT EXISTS tasks
+        conn.execute(
+            """CREATE TABLE IF NOT EXISTS tasks
                 (id VARCHAR(50) PRIMARY KEY,
                 priority INTEGER NOT NULL,
                 data TEXT,
                 state VARCHAR(10),
                 timestamp REAL NOT NULL);
                 """
-            )
-            conn.execute(
-                """CREATE TABLE IF NOT EXISTS workers
+        )
+        conn.execute(
+            """CREATE TABLE IF NOT EXISTS workers
                 (id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name VARCHAR(50) NOT NULL,
                 metadata TEXT,
@@ -219,9 +221,7 @@ def init_db():
                 task_id INTEGER,
                 FOREIGN KEY(task_id) REFERENCES tasks(id));
                 """
-            )
-            conn.commit()
+        )
+        conn.commit()
 
-            print(f"Created DB {path.stem}")
-        except Exception as e:
-            print(e)
+        print(f"Created DB {path.stem}")

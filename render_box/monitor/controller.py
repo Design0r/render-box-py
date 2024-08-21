@@ -12,7 +12,7 @@ class Controller:
     def get_tasks(self) -> dict[str, SerializedTask]:
         msg = Message("all_tasks")
         data: dict[str, list[SerializedTask]] = self.connection.send_recv(
-            msg.as_json(), buffer_size=10000
+            msg.as_json(), buffer_size=100000
         )
 
         return {str(task["id"]): SerializedTask(**task) for task in data["data"]}
@@ -23,4 +23,4 @@ class Controller:
             msg.as_json(), buffer_size=10000
         )
 
-        return {worker[0]: WorkerMetadata(*worker) for worker in data["data"]}
+        return {str(worker[0]): WorkerMetadata(*worker) for worker in data["data"]}
