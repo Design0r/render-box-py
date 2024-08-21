@@ -1,12 +1,16 @@
-from typing import Optional
+from datetime import datetime
+from email.utils import format_datetime
+from typing import Iterable, Optional
 
 from PySide6 import QtCore, QtGui, QtWidgets
 
 from render_box.monitor.controller import Controller
+from render_box.shared.task import SerializedTask, WorkerMetadata
+from render_box.shared.utils import format_timestamp
 
 
 class TaskModel(QtGui.QStandardItemModel):
-    column_labels = ("ID", "Command")
+    column_labels = ("ID", "Priority", "Tiemstamp", "Command")
     ID_ROLE = QtCore.Qt.ItemDataRole.UserRole + 1
     COMMAND_ROLE = QtCore.Qt.ItemDataRole.UserRole + 2
 
@@ -21,14 +25,25 @@ class TaskModel(QtGui.QStandardItemModel):
         for idx, label in enumerate(self.column_labels):
             self.setHeaderData(idx, QtCore.Qt.Orientation.Horizontal, label)
 
+    def add_row(self, task: SerializedTask) -> None:
+        col_list: tuple[str, ...] = (
+            str(task["id"]),
+            str(task["priority"]),
+            format_timestamp(task["timestamp"]),
+            task["command"]["name"],
+        )
+        row: list[QtGui.QStandardItem] = []
+        for col in col_list:
+            item = QtGui.QStandardItem(col)
+            item.setEditable(False)
+            row.append(item)
+
+        self.appendRow(row)
+
     def set_column_content(self):
         tasks = self.controller.get_tasks()
         for task in tasks.values():
-            id_item = QtGui.QStandardItem(str(task["id"]))
-            id_item.setEditable(False)
-            name_item = QtGui.QStandardItem(task["command"]["name"])
-            name_item.setEditable(False)
-            self.appendRow([id_item, name_item])
+            self.add_row(task)
 
     def refresh(self) -> None:
         tasks = self.controller.get_tasks()
@@ -38,7 +53,6 @@ class TaskModel(QtGui.QStandardItemModel):
         for row in range(current_row_count):
             task_id = self.item(row, 0).text()
             seen.add(task_id)
-            # task_name = self.item(row, 1).data(self.COMMAND_ROLE)
             task = tasks.get(task_id)
             if not task:
                 self.removeRow(row)
@@ -46,9 +60,7 @@ class TaskModel(QtGui.QStandardItemModel):
         for id, task in tasks.items():
             if id in seen:
                 continue
-            id_item = QtGui.QStandardItem(id)
-            name_item = QtGui.QStandardItem(task["command"]["name"])
-            self.appendRow([id_item, name_item])
+            self.add_row(task)
 
 
 class LabeledTable(QtWidgets.QWidget):
@@ -79,7 +91,7 @@ class LabeledTable(QtWidgets.QWidget):
 
 
 class WorkerModel(QtGui.QStandardItemModel):
-    column_labels = ("Name", "Timestamp")
+    column_labels = ("Name", "State", "Timestamp", "Task")
     ID_ROLE = QtCore.Qt.ItemDataRole.UserRole + 1
     NAME_ROLE = QtCore.Qt.ItemDataRole.UserRole + 2
 
@@ -94,35 +106,43 @@ class WorkerModel(QtGui.QStandardItemModel):
         for idx, label in enumerate(self.column_labels):
             self.setHeaderData(idx, QtCore.Qt.Orientation.Horizontal, label)
 
+    def add_row(self, worker: WorkerMetadata) -> None:
+        columns: tuple[str, ...] = (
+            worker.name,
+            worker.state,
+            format_timestamp(worker.timestamp),
+            str(worker.task_id),
+        )
+
+        row: list[QtGui.QStandardItem] = []
+        for col in columns:
+            item = QtGui.QStandardItem(col)
+            item.setEditable(False)
+            row.append(item)
+
+        self.appendRow(row)
+
     def set_column_content(self):
         workers = self.controller.get_workers()
         for worker in workers.values():
-            name_item = QtGui.QStandardItem(worker.name)
-            name_item.setEditable(False)
-            time_item = QtGui.QStandardItem(str(worker.timestamp))
-            time_item.setEditable(False)
-            self.appendRow([name_item, time_item])
+            self.add_row(worker)
 
     def refresh(self) -> None:
-        pass
-        # workers = self.controller.get_worker()
-        # current_row_count = self.rowCount()
-        #
-        # seen: set[str] = set()
-        # for row in range(current_row_count - 1):
-        #     task_id = self.item(row, 0).text()
-        #     seen.add(task_id)
-        #     # task_name = self.item(row, 1).data(self.COMMAND_ROLE)
-        #     task = workers.get(task_id)
-        #     if not task:
-        #         self.removeRow(row)
-        #
-        # for id, task in workers.items():
-        #     if id in seen:
-        #         continue
-        #     id_item = QtGui.QStandardItem(id)
-        #     name_item = QtGui.QStandardItem(task["command"]["name"])
-        #     self.appendRow([id_item, name_item])
+        workers = self.controller.get_workers()
+        current_row_count = self.rowCount()
+
+        seen: set[str] = set()
+        for row in range(current_row_count - 1):
+            worker_id = self.item(row, 0).text()
+            seen.add(worker_id)
+            worker = workers.get(worker_id)
+            if not worker:
+                self.removeRow(row)
+
+        for id, worker in workers.items():
+            if id in seen:
+                continue
+            self.add_row(worker)
 
 
 class TaskWidget(QtWidgets.QTableView):
