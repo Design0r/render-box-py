@@ -8,9 +8,16 @@ from render_box.monitor.controller import Controller
 from render_box.shared.task import SerializedTask, WorkerMetadata
 from render_box.shared.utils import format_timestamp
 
+STATE_COLORS = {
+    "waiting": QtGui.QColor("white"),
+    "progress": QtGui.QColor("green"),
+    "finished": QtGui.QColor(77, 134, 196),
+}
+BG_COLORS = {"dark": QtGui.QColor(20, 20, 20), "light": QtGui.QColor(40, 40, 40)}
+
 
 class TaskModel(QtGui.QStandardItemModel):
-    column_labels = ("ID", "Priority", "Tiemstamp", "Command")
+    column_labels = ("ID", "Priority", "State", "Tiemstamp", "Command")
     ID_ROLE = QtCore.Qt.ItemDataRole.UserRole + 1
     COMMAND_ROLE = QtCore.Qt.ItemDataRole.UserRole + 2
 
@@ -25,10 +32,21 @@ class TaskModel(QtGui.QStandardItemModel):
         for idx, label in enumerate(self.column_labels):
             self.setHeaderData(idx, QtCore.Qt.Orientation.Horizontal, label)
 
+    def set_row_color(self, color: QtGui.QColor, row: int) -> None:
+        bg_col = BG_COLORS["light"] if row % 2 == 0 else BG_COLORS["dark"]
+        for col in range(self.columnCount()):
+            item = self.item(row, col)
+            if item:
+                item.setForeground(color)
+                item.setBackground(bg_col)
+
     def add_row(self, task: SerializedTask) -> None:
+        row_idx = self.rowCount()
+        bg_col = BG_COLORS["light"] if row_idx % 2 == 0 else BG_COLORS["dark"]
         col_list: tuple[str, ...] = (
             str(task["id"]),
             str(task["priority"]),
+            task["state"],
             format_timestamp(task["timestamp"]),
             task["command"]["name"],
         )
@@ -36,6 +54,8 @@ class TaskModel(QtGui.QStandardItemModel):
         for col in col_list:
             item = QtGui.QStandardItem(col)
             item.setEditable(False)
+            item.setForeground(STATE_COLORS[task["state"]])
+            item.setBackground(bg_col)
             row.append(item)
 
         self.appendRow(row)
@@ -56,11 +76,19 @@ class TaskModel(QtGui.QStandardItemModel):
             task = tasks.get(task_id)
             if not task:
                 self.removeRow(row)
+                continue
+
+            status_item = self.item(row, 2)
+            task_state = task.get("state", "")
+            if status_item.text() != task_state:
+                status_item.setText(task_state)
+                self.set_row_color(STATE_COLORS[task_state], row)
 
         for id, task in tasks.items():
             if id in seen:
                 continue
             self.add_row(task)
+            self.set_row_color(STATE_COLORS[task["state"]], self.rowCount() - 1)
 
 
 class LabeledTable(QtWidgets.QWidget):

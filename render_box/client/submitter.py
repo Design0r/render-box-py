@@ -16,7 +16,7 @@ def start_submitter(count: int = 1):
     for _ in range(count):
         try:
             command = TestCommand(5)
-            task = Task(uuid4(), 50, time(), command)
+            task = Task(uuid4(), 50, "waiting", time(), command)
             message = Message.from_task(task)
 
             connection.send_recv(message.as_json())

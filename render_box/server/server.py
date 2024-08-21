@@ -43,8 +43,12 @@ def handle_client(connection: Connection, task_manager: TaskManager):
                         continue
 
                     message = Message.from_task(task)
-                    connection.send(message.as_json())
-                    print(f"sending {task} to {client}")
+                    print(f"sending task to {client}")
+                    response = connection.send_recv(message.as_json())
+                    message = Message(**json.loads(response))
+                    if message.message == "finished":
+                        updated_task = task._replace(state="finished")
+                        task_manager.update_task(updated_task)
 
                 case "all_tasks":
                     message = Message(

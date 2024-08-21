@@ -36,6 +36,7 @@ def start_worker():
 
                 command = Task.from_json(SerializedTask(**message.data))
                 command.run()
+                connection.send(Message("finished").as_json())
 
             elif message.message == "no_tasks":
                 print("no task, waiting...")

@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import sqlite3
 from pathlib import Path
+from typing import Optional
 from uuid import UUID
 
 import render_box.shared.commands as commands
@@ -44,12 +45,81 @@ def insert_task(task: task.Task) -> None:
     with DBConnection() as conn:
         try:
             conn.execute(
-                "INSERT INTO tasks(id, priority, timestamp, data) VALUES (?, ?, ?, ?);",
+                "INSERT INTO tasks(id, priority, state, timestamp, data) VALUES (?, ?, ?,?, ?);",
                 (
                     str(task.id),
                     task.priority,
+                    task.state,
                     task.timestamp,
                     json.dumps(task.command.serialize()),
+                ),
+            )
+            conn.commit()
+        except Exception as e:
+            print(e)
+
+
+def select_next_task() -> Optional[task.SerializedTask]:
+    with DBConnection() as conn:
+        cursor = conn.execute("""
+WITH selected_task AS (
+                SELECT id, priority, data, state, timestamp
+                FROM tasks
+                WHERE priority = (
+                    SELECT MAX(priority)
+                    FROM tasks
+                    WHERE state = 'waiting'
+                )
+                AND state = 'waiting'
+                ORDER BY timestamp ASC
+                LIMIT 1
+            )
+            UPDATE tasks
+            SET state = 'progress'
+            WHERE id = (SELECT id FROM selected_task)
+            RETURNING id, priority, data, 'progress', timestamp;            
+
+
+
+        """)
+        conn.commit()
+        result = cursor.fetchone()
+        if not result:
+            return None
+
+        id, prio, data, state, time = result
+
+    t = task.SerializedTask(
+        id=id,
+        priority=prio,
+        state=state,
+        timestamp=time,
+        command=commands.SerializedCommand(json.loads(data)),
+    )
+
+    return t
+
+
+def update_task(task: task.Task) -> None:
+    with DBConnection() as conn:
+        try:
+            conn.execute(
+                """
+ UPDATE tasks
+    SET 
+        priority = ?,
+        data = ?,
+        state = ?,
+        timestamp = ?
+    WHERE 
+        id = ?;
+""",
+                (
+                    task.priority,
+                    json.dumps(task.command.serialize()),
+                    task.state,
+                    task.timestamp,
+                    str(task.id),
                 ),
             )
             conn.commit()
@@ -79,6 +149,7 @@ def select_all_tasks() -> list[task.SerializedTask]:
                 t = task.SerializedTask(
                     id=id,
                     priority=prio,
+                    state=state,
                     timestamp=time,
                     command=commands.SerializedCommand(json.loads(data)),
                 )

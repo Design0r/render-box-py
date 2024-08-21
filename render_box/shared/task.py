@@ -15,6 +15,7 @@ from ..shared.commands import Command, SerializedCommand
 class SerializedTask(TypedDict):
     id: str
     priority: int
+    state: str
     timestamp: float
     command: SerializedCommand
 
@@ -26,6 +27,7 @@ def class_name_from_repr(name: str):
 class Task(NamedTuple):
     id: UUID
     priority: int
+    state: str
     timestamp: float
     command: Command
 
@@ -36,6 +38,7 @@ class Task(NamedTuple):
         return SerializedTask(
             id=str(self.id),
             priority=self.priority,
+            state=self.state,
             timestamp=self.timestamp,
             command=self.command.serialize(),
         )
@@ -48,6 +51,7 @@ class Task(NamedTuple):
         task = Task(
             id=UUID(data["id"]),
             priority=data["priority"],
+            state=data["state"],
             timestamp=data["timestamp"],
             command=Command.from_json(data["command"]),
         )
@@ -72,11 +76,15 @@ class TaskManager:
             db.insert_task(t)
 
     def pop_task(self) -> Optional[Task]:
-        pass
+        task = db.select_next_task()
+        if task:
+            return Task.from_json(task)
+
+        return
 
     @classmethod
     def create_task(cls, command: Command, priority: int = 50) -> Task:
-        task = Task(uuid4(), priority, time.time(), command)
+        task = Task(uuid4(), priority, "waiting", time.time(), command)
         return task
 
     def register_worker(self, worker: WorkerMetadata) -> None:
@@ -87,6 +95,9 @@ class TaskManager:
 
     def get_all_worker(self) -> list[WorkerMetadata]:
         return db.select_all_worker()
+
+    def update_task(self, task: Task) -> None:
+        db.update_task(task)
 
 
 class WorkerState(StrEnum):
