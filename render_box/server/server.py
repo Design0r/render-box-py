@@ -1,5 +1,7 @@
 import socket
+import time
 from threading import Thread
+from typing import Any, Optional
 
 from render_box.server import db
 
@@ -15,23 +17,38 @@ class ClientHandler:
     def __init__(self, connection: Connection, task_manager: TaskManager) -> None:
         self.connection = connection
         self.task_manager = task_manager
-        self.worker: WorkerMetadata = None
+        self.worker = WorkerMetadata(
+            len(self.task_manager.worker) + 1, "unknown", "idle", time.time(), None
+        )
+        self.task: Optional[Task] = None
 
         ip, port = connection.socket.getpeername()
         self.client_ip = f"{ip}:{port}"
 
         print(f"client {self.client_ip} connected")
 
-    def update_worker(self, worker: WorkerMetadata) -> None:
-        self.worker = worker
-        self.task_manager.update_worker(worker)
+    def update_worker(self, **kwargs: Any) -> None:
+        self.worker = self.worker._replace(**kwargs)
+        self.task_manager.update_worker(self.worker)
+
+    def update_task(self, **kwargs: Any) -> None:
+        if not self.task:
+            return
+
+        self.task = self.task._replace(**kwargs)
+        self.task_manager.update_task(self.task)
 
     def handle_message(self, message: Message) -> None:
         match message.message:
             case "register_worker":
                 worker = WorkerMetadata(**message.data)
-                self.worker = worker._replace(id=len(self.task_manager.worker) + 1)
-                self.task_manager.register_worker(self.worker)
+                registered_worker = self.task_manager.worker.get(worker.name)
+                if registered_worker:
+                    self.worker = registered_worker
+                    self.update_worker(state="idle")
+                else:
+                    self.worker = self.worker._replace(name=worker.name)
+                    self.task_manager.register_worker(self.worker)
                 self.connection.send(Message("success").as_json())
 
             case "task":
@@ -41,25 +58,20 @@ class ClientHandler:
                 self.connection.send(Message("task_created").as_json())
 
             case "get_task":
-                task = self.task_manager.pop_task()
-                if not task:
+                self.task = self.task_manager.pop_task()
+                if not self.task:
                     self.connection.send(Message("no_tasks").as_json())
                     print(f"{self.worker.name} asked for task, none exist...")
                     return
 
-                self.worker = self.worker._replace(
-                    task_id=str(task.id), state="working"
-                )
-                self.task_manager.update_worker(self.worker)
-                message = Message.from_task(task)
+                self.update_worker(task_id=str(self.task.id), state="working")
+                message = Message.from_task(self.task)
                 print(f"sending task to {self.worker.name}")
-                response = self.connection.send_recv(message.as_json())
-                message = Message(**response)
-                if message.message == "finished":
-                    updated_task = task._replace(state="finished")
-                    self.task_manager.update_task(updated_task)
-                    self.worker = self.worker._replace(task_id=None, state="idle")
-                    self.task_manager.update_worker(self.worker)
+                self.connection.send(message.as_json())
+
+            case "finished":
+                self.update_task(state="finished")
+                self.update_worker(task_id=None, state="idle")
 
             case "all_tasks":
                 message = Message(
@@ -89,8 +101,10 @@ class ClientHandler:
                 message = Message(**data)
                 self.handle_message(message)
 
-            except CloseConnectionException as e:
+            except Exception as e:
                 print(e)
+                self.update_worker(state="offline", task_id=None)
+                self.update_task(state="waiting")
                 break
 
         print(f"client {self.worker.name} disconnected")

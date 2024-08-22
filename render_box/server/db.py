@@ -121,7 +121,6 @@ def update_task(task: task.Task) -> None:
 
 
 def update_worker(worker: task.WorkerMetadata) -> None:
-    print(worker.id)
     with DBConnection() as conn:
         conn.execute(
             """

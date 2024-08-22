@@ -12,6 +12,7 @@ STATE_COLORS = {
     "finished": QtGui.QColor(77, 134, 196),
     "idle": QtGui.QColor("white"),
     "working": QtGui.QColor("green"),
+    "offline": QtGui.QColor(120, 120, 120),
 }
 BG_COLORS = {"dark": QtGui.QColor(20, 20, 20), "light": QtGui.QColor(40, 40, 40)}
 
