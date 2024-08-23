@@ -1,16 +1,15 @@
 from __future__ import annotations
 
 import json
-from typing import Any, NamedTuple, Optional
+from typing import NamedTuple, Optional
 
 import render_box.shared.task as task
+from render_box.shared.serialize import Serializable
 
 
 class Message(NamedTuple):
     message: str
-    data: Optional[
-        task.SerializedTask | task.SerializedCommand | dict[str, Any] | Any
-    ] = None
+    data: Optional[Serializable] = None
 
     def as_json(self, encoding: str = "utf-8") -> bytes:
         return json.dumps(self._asdict()).encode(encoding)

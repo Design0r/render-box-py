@@ -7,6 +7,8 @@ from typing import Optional
 
 import render_box.shared.commands as commands
 import render_box.shared.task as task
+import render_box.shared.worker as worker
+from render_box.server.sql import SQLoader
 
 DB_PATH = Path(__file__).parent / "render_box.db"
 
@@ -56,36 +58,21 @@ def insert_task(task: task.Task) -> None:
 
 
 def select_next_task() -> Optional[task.SerializedTask]:
+    sql = SQLoader()
+    query = sql.load("select_next_task")
+
+    if not query:
+        return
+
     with DBConnection() as conn:
-        cursor = conn.execute("""
-WITH selected_task AS (
-                SELECT id, priority, data, state, timestamp
-                FROM tasks
-                WHERE priority = (
-                    SELECT MAX(priority)
-                    FROM tasks
-                    WHERE state = 'waiting'
-                )
-                AND state = 'waiting'
-                ORDER BY timestamp ASC
-                LIMIT 1
-            )
-            UPDATE tasks
-            SET state = 'progress'
-            WHERE id = (SELECT id FROM selected_task)
-            RETURNING id, priority, data, 'progress', timestamp;            
-
-
-
-        """)
+        cursor = conn.execute(query)
         conn.commit()
         result = cursor.fetchone()
         if not result:
-            return None
+            return
 
-        id, prio, data, state, time = result
-
-    t = task.SerializedTask(
+    id, prio, data, state, time = result
+    return task.SerializedTask(
         id=id,
         priority=prio,
         state=state,
@@ -93,22 +80,17 @@ WITH selected_task AS (
         command=commands.SerializedCommand(json.loads(data)),
     )
 
-    return t
-
 
 def update_task(task: task.Task) -> None:
+    sql = SQLoader()
+    query = sql.load("update_task")
+
+    if not query:
+        return
+
     with DBConnection() as conn:
         conn.execute(
-            """
- UPDATE tasks
-    SET 
-        priority = ?,
-        data = ?,
-        state = ?,
-        timestamp = ?
-    WHERE 
-        id = ?;
-""",
+            query,
             (
                 task.priority,
                 json.dumps(task.command.serialize()),
@@ -120,19 +102,16 @@ def update_task(task: task.Task) -> None:
         conn.commit()
 
 
-def update_worker(worker: task.WorkerMetadata) -> None:
+def update_worker(worker: worker.WorkerMetadata) -> None:
+    sql = SQLoader()
+    query = sql.load("update_worker")
+
+    if not query:
+        return
+
     with DBConnection() as conn:
         conn.execute(
-            """
- UPDATE workers
-    SET 
-        name = ?,
-        state = ?,
-        timestamp = ?,
-        task_id = ?
-    WHERE 
-        id = ?;
-""",
+            query,
             (
                 worker.name,
                 worker.state,
@@ -144,7 +123,7 @@ def update_worker(worker: task.WorkerMetadata) -> None:
         conn.commit()
 
 
-def insert_worker(worker: task.WorkerMetadata) -> None:
+def insert_worker(worker: worker.WorkerMetadata) -> None:
     with DBConnection() as conn:
         conn.execute(
             "INSERT INTO workers(name, state, timestamp, task_id) VALUES (?, ?, ?, ?);",
@@ -175,21 +154,21 @@ def select_all_tasks() -> list[task.SerializedTask]:
     return tasks
 
 
-def select_all_worker() -> list[task.WorkerMetadata]:
-    worker: list[task.WorkerMetadata] = []
+def select_all_worker() -> list[worker.WorkerMetadata]:
+    worker_list: list[worker.WorkerMetadata] = []
     with DBConnection() as conn:
         cursor = conn.execute("SELECT * FROM workers;")
         for id, name, _, time, state, task_id in cursor.fetchall():
-            w = task.WorkerMetadata(
+            w = worker.WorkerMetadata(
                 id,
                 name=name,
                 state=state,
                 timestamp=time,
                 task_id=task_id,
             )
-            worker.append(w)
+            worker_list.append(w)
 
-    return worker
+    return worker_list
 
 
 def init_db():
@@ -199,28 +178,14 @@ def init_db():
         return
 
     path.parent.mkdir(exist_ok=True)
+    sql = SQLoader()
+    query = sql.load("create_tables")
+
+    if not query:
+        return
 
     with DBConnection() as conn:
-        conn.execute(
-            """CREATE TABLE IF NOT EXISTS tasks
-                (id VARCHAR(50) PRIMARY KEY,
-                priority INTEGER NOT NULL,
-                data TEXT,
-                state VARCHAR(10),
-                timestamp REAL NOT NULL);
-                """
-        )
-        conn.execute(
-            """CREATE TABLE IF NOT EXISTS workers
-                (id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name VARCHAR(50) NOT NULL,
-                metadata TEXT,
-                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-                state VARCHAR(10),
-                task_id INTEGER,
-                FOREIGN KEY(task_id) REFERENCES tasks(id));
-                """
-        )
+        conn.execute(query)
         conn.commit()
 
         print(f"Created DB {path.stem}")

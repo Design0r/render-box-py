@@ -3,8 +3,9 @@ from __future__ import annotations
 import json
 import time
 from collections.abc import Iterable
+from dataclasses import asdict, dataclass
 from enum import StrEnum
-from typing import Any, NamedTuple, Optional, TypedDict
+from typing import Any, Optional, TypedDict
 from uuid import UUID, uuid4
 
 from render_box.server import db
@@ -24,7 +25,8 @@ def class_name_from_repr(name: str):
     return name.split("'")[1].split(".")[-1]
 
 
-class Task(NamedTuple):
+@dataclass(slots=True)
+class Task:
     id: UUID
     priority: int
     state: str
@@ -56,10 +58,6 @@ class Task(NamedTuple):
             command=Command.from_json(data["command"]),
         )
         return task
-
-    @classmethod
-    def fields(cls) -> str:
-        return f"({','.join([f.upper() for f in cls._fields])})"
 
 
 class TaskManager:
@@ -110,23 +108,26 @@ class TaskManager:
 
 class WorkerState(StrEnum):
     Idle = "idle"
-    Active = "active"
+    Working = "working"
     Offline = "offline"
 
 
-class WorkerMetadata(NamedTuple):
+class TaskState(StrEnum):
+    Waiting = "waiting"
+    Progress = "progress"
+    Completed = "completed"
+
+
+@dataclass
+class WorkerMetadata:
     id: Optional[int]
     name: str
-    state: str
+    state: WorkerState
     timestamp: float
     task_id: Optional[str]
 
-    @classmethod
-    def fields(cls) -> str:
-        return f"({','.join([f.upper() for f in cls._fields])})"
-
     def serialize(self) -> dict[str, Any]:
-        return self._asdict()
+        return asdict(self)
 
     def as_json(self) -> str:
         return json.dumps(self.serialize())

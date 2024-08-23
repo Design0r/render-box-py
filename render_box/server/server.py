@@ -28,14 +28,16 @@ class ClientHandler:
         print(f"client {self.client_ip} connected")
 
     def update_worker(self, **kwargs: Any) -> None:
-        self.worker = self.worker._replace(**kwargs)
+        for k, v in kwargs.items():
+            setattr(self.worker, k, v)
         self.task_manager.update_worker(self.worker)
 
     def update_task(self, **kwargs: Any) -> None:
         if not self.task:
             return
+        for k, v in kwargs:
+            setattr(self.worker, k, v)
 
-        self.task = self.task._replace(**kwargs)
         self.task_manager.update_task(self.task)
 
     def handle_message(self, message: Message) -> None:
@@ -47,7 +49,7 @@ class ClientHandler:
                     self.worker = registered_worker
                     self.update_worker(state="idle")
                 else:
-                    self.worker = self.worker._replace(name=worker.name)
+                    self.worker.name = worker.name
                     self.task_manager.register_worker(self.worker)
                 self.connection.send(Message("success").as_json())
 
@@ -130,9 +132,6 @@ def start_server() -> None:
             thread.start()
         except socket.timeout:
             continue
-
-    server_socket.close()
-    print("RenderBox server has been stopped.")
 
 
 if __name__ == "__main__":
