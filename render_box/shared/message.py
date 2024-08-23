@@ -1,21 +1,29 @@
 from __future__ import annotations
 
 import json
-from typing import NamedTuple, Optional
+from enum import StrEnum
+from typing import Any, NamedTuple, Optional
 
 import render_box.shared.task as task
-from render_box.shared.serialize import Serializable
+from render_box.shared.serialize import (
+    Command,
+)
+
+
+class MessageType(StrEnum):
+    pass
 
 
 class Message(NamedTuple):
     message: str
-    data: Optional[Serializable] = None
+    data: Optional[Any] = None
 
     def as_json(self, encoding: str = "utf-8") -> bytes:
-        return json.dumps(self._asdict()).encode(encoding)
+        message = self._asdict()
+        return json.dumps(message).encode(encoding)
 
     @classmethod
-    def from_command(cls, command: task.Command) -> Message:
+    def from_command(cls, command: Command) -> Message:
         return Message(message="command", data=command.serialize())
 
     @classmethod

@@ -1,62 +1,68 @@
 from __future__ import annotations
 
+import json
 import time
-from abc import ABC, abstractmethod
-from typing import Any, Type, TypedDict, override
+from typing import Any, Optional, Type
+
+from render_box.shared.serialize import Command, SerializedCommand
 
 
-def class_name_from_repr(name: str):
-    return name.split("'")[1].split(".")[-1]
-
-
-class SerializedCommand(TypedDict):
-    name: str
-    data: dict[str, Any]
-
-
-class Command(ABC):
+class CommandManager:
     commands: dict[str, Type[Command]] = {}
 
-    def __init_subclass__(cls, **kwargs: dict[str, Any]) -> None:
-        super().__init_subclass__(**kwargs)
-        if cls not in cls.commands.values():
-            name = class_name_from_repr(str(cls))
-            cls.commands[name] = cls
-
-    @abstractmethod
-    def run(self) -> None: ...
-
-    @abstractmethod
-    def serialize(self) -> SerializedCommand: ...
-
     @classmethod
-    def from_json(cls, data: SerializedCommand) -> Command:
-        cmd_class = cls.commands[data["name"]]
-        cmd = cmd_class(**data["data"])
-        return cmd
-
-    def __str__(self) -> str:
-        return class_name_from_repr(str(type(self)))
-
-    def __repr__(self) -> str:
-        return class_name_from_repr(str(type(self)))
+    def get_command(cls, name: str) -> Optional[Type[Command]]:
+        cmd_type = cls.commands.get(name)
+        if not cmd_type:
+            print(f'invalid command type: "{name}" not found')
+        return cmd_type
 
 
+def register_command(command: Type[Any]) -> Type[Any]:
+    cmd_name = command.__name__
+    if cmd_name not in CommandManager.commands:
+        CommandManager.commands[cmd_name] = command
+        print(f"Registered Command {cmd_name}")
+
+    return command
+
+
+@register_command
 class TestCommand(Command):
     def __init__(self, duration: int) -> None:
         super().__init__()
         self.duration = duration
 
-    @override
     def run(self) -> None:
         print(f"starting command {self}")
         time.sleep(self.duration)
         print(f"finished command {self}")
 
-    @override
     def serialize(self) -> SerializedCommand:
-        return SerializedCommand(name=str(self), data=self.__dict__)
+        return {"name": self.__qualname__, "data": self.__dict__}
 
-    @override
-    def __repr__(self) -> str:
-        return f"{super().__repr__()}(duration={self.duration})"
+    @classmethod
+    def deserialize(cls, data: SerializedCommand) -> Optional[TestCommand]:
+        try:
+            command = TestCommand(**data["data"])
+        except Exception:
+            print("error deserializing SerializedCommand")
+            command = None
+
+        return command
+
+    def as_json(self) -> bytes:
+        return json.dumps(self.serialize()).encode("utf-8")
+
+    @classmethod
+    def from_json(cls, data: bytes) -> Optional[TestCommand]:
+        try:
+            command = json.loads(data.decode("utf-8"))
+        except Exception:
+            print("error converting json data to Command")
+            command = None
+
+        if not command:
+            return
+
+        return cls.deserialize(command)

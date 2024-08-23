@@ -3,61 +3,77 @@ from __future__ import annotations
 import json
 import time
 from collections.abc import Iterable
-from dataclasses import asdict, dataclass
 from enum import StrEnum
-from typing import Any, Optional, TypedDict
+from typing import Optional
 from uuid import UUID, uuid4
 
 from render_box.server import db
+from render_box.shared.commands import CommandManager
 
-from ..shared.commands import Command, SerializedCommand
-
-
-class SerializedTask(TypedDict):
-    id: str
-    priority: int
-    state: str
-    timestamp: float
-    command: SerializedCommand
+from .serialize import Command, Serializable, SerializedTask
+from .worker import WorkerMetadata
 
 
-def class_name_from_repr(name: str):
-    return name.split("'")[1].split(".")[-1]
+class TaskState(StrEnum):
+    Waiting = "waiting"
+    Progress = "progress"
+    Completed = "completed"
 
 
-@dataclass(slots=True)
-class Task:
-    id: UUID
-    priority: int
-    state: str
-    timestamp: float
-    command: Command
+class Task(Serializable["Task", SerializedTask]):
+    def __init__(
+        self,
+        id: UUID,
+        priority: int,
+        command: Command,
+        state: TaskState = TaskState.Waiting,
+        timestamp: Optional[float] = None,
+    ) -> None:
+        self.id = id
+        self.priority = priority
+        self.command = command
+        self.state = state
+        self.timestamp = timestamp or time.time()
 
     def run(self) -> None:
         self.command.run()
 
     def serialize(self) -> SerializedTask:
-        return SerializedTask(
-            id=str(self.id),
-            priority=self.priority,
-            state=self.state,
-            timestamp=self.timestamp,
-            command=self.command.serialize(),
-        )
+        task: SerializedTask = {}
+        for k, v in self.__dict__.items():
+            if isinstance(v, Command):
+                v = v.serialize()
+            elif isinstance(v, UUID):
+                v = str(v)
+            task[k] = v
 
-    def as_json(self) -> str:
-        return json.dumps(self.serialize())
+        return task
 
     @classmethod
-    def from_json(cls, data: SerializedTask) -> Task:
-        task = Task(
+    def deserialize(cls, data: SerializedTask) -> Optional[Task]:
+        command_type = CommandManager.get_command(data["command"]["name"])
+
+        if not command_type:
+            return
+
+        command = command_type.deserialize(data["command"])
+        if not command:
+            return
+
+        return Task(
             id=UUID(data["id"]),
             priority=data["priority"],
-            state=data["state"],
+            command=command,
+            state=TaskState(data["state"]),
             timestamp=data["timestamp"],
-            command=Command.from_json(data["command"]),
         )
-        return task
+
+    @classmethod
+    def from_json(cls, data: bytes) -> Optional[Task]:
+        return cls.deserialize(json.loads(data.decode("utf-8")))
+
+    def as_json(self) -> bytes:
+        return json.dumps(self.serialize()).encode("utf-8")
 
 
 class TaskManager:
@@ -80,14 +96,13 @@ class TaskManager:
     def pop_task(self) -> Optional[Task]:
         task = db.select_next_task()
         if task:
-            return Task.from_json(task)
+            return Task.deserialize(task)
 
         return
 
     @classmethod
     def create_task(cls, command: Command, priority: int = 50) -> Task:
-        task = Task(uuid4(), priority, "waiting", time.time(), command)
-        return task
+        return Task(uuid4(), priority, command)
 
     def register_worker(self, worker: WorkerMetadata) -> None:
         self.worker[worker.name] = worker
@@ -104,30 +119,3 @@ class TaskManager:
 
     def update_worker(self, worker: WorkerMetadata) -> None:
         db.update_worker(worker)
-
-
-class WorkerState(StrEnum):
-    Idle = "idle"
-    Working = "working"
-    Offline = "offline"
-
-
-class TaskState(StrEnum):
-    Waiting = "waiting"
-    Progress = "progress"
-    Completed = "completed"
-
-
-@dataclass
-class WorkerMetadata:
-    id: Optional[int]
-    name: str
-    state: WorkerState
-    timestamp: float
-    task_id: Optional[str]
-
-    def serialize(self) -> dict[str, Any]:
-        return asdict(self)
-
-    def as_json(self) -> str:
-        return json.dumps(self.serialize())
