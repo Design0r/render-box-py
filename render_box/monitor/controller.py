@@ -1,6 +1,6 @@
 from render_box.server.connection import Connection
 from render_box.shared.message import Message
-from render_box.shared.serialize import SerializedWorker
+from render_box.shared.serialize import SerializedJob, SerializedWorker
 from render_box.shared.task import SerializedTask, Worker
 
 
@@ -32,3 +32,11 @@ class Controller:
             response[new_worker.name] = new_worker
 
         return response
+
+    def get_jobs(self) -> dict[str, SerializedJob]:
+        msg = Message("all_jobs")
+        data: dict[str, list[SerializedJob]] = self.connection.send_recv(
+            msg.as_json(), buffer_size=100000
+        )
+
+        return {job["name"]: job for job in data["data"]}

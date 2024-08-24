@@ -5,6 +5,7 @@ from enum import StrEnum
 from typing import Any, NamedTuple, Optional
 
 import render_box.shared.task as task
+from render_box.shared.job import Job
 from render_box.shared.serialize import (
     Command,
 )
@@ -29,3 +30,7 @@ class Message(NamedTuple):
     @classmethod
     def from_task(cls, task: task.Task) -> Message:
         return Message(message="task", data=task.serialize())
+
+    @classmethod
+    def from_job(cls, job: Job) -> Message:
+        return Message(message="job", data=job.serialize())

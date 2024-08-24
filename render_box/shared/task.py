@@ -7,10 +7,17 @@ from enum import StrEnum
 from typing import Optional
 from uuid import UUID, uuid4
 
+import render_box.shared.job as job
 from render_box.server import db
 from render_box.shared.commands import CommandManager
 
-from .serialize import Command, Serializable, SerializedTask, SerializedWorker
+from .serialize import (
+    Command,
+    Serializable,
+    SerializedJob,
+    SerializedTask,
+    SerializedWorker,
+)
 from .worker import Worker
 
 
@@ -23,15 +30,17 @@ class TaskState(StrEnum):
 class Task(Serializable["Task", SerializedTask]):
     def __init__(
         self,
-        id: UUID,
-        priority: int,
         command: Command,
+        id: Optional[UUID] = None,
+        job_id: Optional[UUID] = None,
+        priority: Optional[int] = None,
         state: TaskState = TaskState.Waiting,
         timestamp: Optional[float] = None,
     ) -> None:
-        self.id = id
-        self.priority = priority
         self.command = command
+        self.id = id or uuid4()
+        self.job_id = job_id
+        self.priority = priority or 50
         self.state = state
         self.timestamp = timestamp or time.time()
 
@@ -65,6 +74,7 @@ class Task(Serializable["Task", SerializedTask]):
 
         return Task(
             id=UUID(data["id"]),
+            job_id=UUID(data["job_id"]),
             priority=data["priority"],
             command=command,
             state=TaskState(data["state"]),
@@ -88,6 +98,12 @@ class TaskManager:
 
         self.worker = {worker.name: worker for worker in self.get_all_worker()}
 
+    def add_job(self, job: job.Job) -> None:
+        db.insert_job(job)
+
+        for task in job.tasks:
+            db.insert_task(task)
+
     def add_task(self, task: Task | Iterable[Task]) -> None:
         if isinstance(task, Task):
             db.insert_task(task)
@@ -96,16 +112,19 @@ class TaskManager:
         for t in task:
             db.insert_task(t)
 
-    def pop_task(self) -> Optional[Task]:
-        task = db.select_next_task()
-        if task:
-            return Task.deserialize(task)
+    def pop_task(self) -> Optional[tuple[Task, job.Job]]:
+        ser_task = db.select_next_task()
+        if not ser_task:
+            return
+        ser_job = db.select_job(ser_task["id"])
+        if not ser_job:
+            return
 
-        return
+        task, j = Task.deserialize(ser_task), job.Job.deserialize(ser_job)
+        if not task or not j:
+            return
 
-    @classmethod
-    def create_task(cls, command: Command, priority: int = 50) -> Task:
-        return Task(uuid4(), priority, command)
+        return (task, j)
 
     def register_worker(self, worker: Worker) -> None:
         self.worker[worker.name] = worker
@@ -113,6 +132,9 @@ class TaskManager:
 
     def get_all_tasks(self) -> list[SerializedTask]:
         return db.select_all_tasks()
+
+    def get_all_jobs(self) -> list[SerializedJob]:
+        return db.select_all_jobs()
 
     def get_all_worker(self) -> list[Worker]:
         return db.select_all_worker()
@@ -125,3 +147,9 @@ class TaskManager:
 
     def update_worker(self, worker: Worker) -> None:
         db.update_worker(worker)
+
+    def update_job(self, job: job.Job) -> None:
+        db.update_job(job)
+
+    def cleanup_jobs(self, task: Task) -> None:
+        db.cleanup_completed_jobs(str(task.id))

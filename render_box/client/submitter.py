@@ -1,5 +1,6 @@
-from uuid import uuid4
+from random import randint
 
+from render_box.shared.job import Job
 from render_box.shared.task import Task
 
 from ..server.connection import Connection
@@ -12,15 +13,19 @@ def start_submitter(count: int = 1):
     server_address = ("localhost", 65432)
     connection.connect(server_address)
 
-    for _ in range(count):
+    for i in range(count):
         try:
-            command = TestCommand(5)
-            task = Task(uuid4(), 50, command)
-            message = Message.from_task(task)
+            job = Job(f"Job {i}")
+            for i in range(randint(1, 10)):
+                task = Task(TestCommand((i // 2) + 1))
+                job.add_task(task)
+            message = Message.from_job(job)
+            buffer = message.as_json()
 
-            response = connection.send_recv(message.as_json())
-            print(response)
-            print("submitted command")
+            connection.send_buffer_size(len(buffer))
+            connection.send_recv(buffer)
+            connection.send_buffer_size(1024)
+            print("submitted Job")
 
         except Exception as e:
             print(e)

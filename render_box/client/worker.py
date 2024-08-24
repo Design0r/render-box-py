@@ -39,7 +39,7 @@ def start_worker():
                     continue
 
                 command.run()
-                connection.send(Message(TaskState.Completed).as_json())
+                connection.send_recv(Message(TaskState.Completed).as_json())
 
             elif message.message == "no_tasks":
                 print("no task, waiting...")

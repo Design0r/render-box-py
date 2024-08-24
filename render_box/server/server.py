@@ -3,6 +3,7 @@ from threading import Thread
 from typing import Any, Optional
 
 from render_box.server import db
+from render_box.shared.job import Job, JobState
 from render_box.shared.worker import WorkerState
 
 from ..server.connection import Connection
@@ -19,6 +20,8 @@ class ClientHandler:
         self.task_manager = task_manager
         self.worker = Worker(len(self.task_manager.worker) + 1, "unknown")
         self.task: Optional[Task] = None
+        self.job: Optional[Job] = None
+        self.buffer_size = 1024
 
         ip, port = connection.socket.getpeername()
         self.client_ip = f"{ip}:{port}"
@@ -38,6 +41,14 @@ class ClientHandler:
 
         self.task_manager.update_task(self.task)
 
+    def update_job(self, **kwargs: Any) -> None:
+        if not self.job:
+            return
+        for k, v in kwargs.items():
+            setattr(self.job, k, v)
+
+        self.task_manager.update_job(self.job)
+
     def handle_message(self, message: Message) -> None:
         match message.message:
             case "register_worker":
@@ -54,29 +65,54 @@ class ClientHandler:
                     self.task_manager.register_worker(self.worker)
                 self.connection.send(Message("success").as_json())
 
-            case "task":
-                task = Task.deserialize(message.data)
-                if not task:
+            case "buffer_size":
+                size = message.data
+                if not isinstance(size, int):
                     return
-                self.task_manager.add_task(task)
+                self.buffer_size = size
+                self.connection.send(Message("changed_buffer").as_json())
+
+            case "job":
+                job = Job.deserialize(message.data)
+                if not job:
+                    return
+                self.task_manager.add_job(job)
+                print("job added")
+                self.connection.send(Message("job_created").as_json())
+
+            case "task":
+                job = Task.deserialize(message.data)
+                if not job:
+                    return
+                self.task_manager.add_task(job)
                 self.connection.send(Message("task_created").as_json())
 
             case "get_task":
-                self.task = self.task_manager.pop_task()
-                if not self.task:
+                result = self.task_manager.pop_task()
+                if not result:
                     self.connection.send(Message("no_tasks").as_json())
                     print(f"{self.worker.name} asked for task, none exist...")
                     return
+                self.task, self.job = result
 
                 self.update_worker(task_id=str(self.task.id), state="working")
-                message = Message.from_task(self.task)
-                print(f"sending task to {self.worker.name}")
-                self.connection.send(message.as_json())
+                self.update_job(state=JobState.Progress)
+                message = print(f"sending task to {self.worker.name}")
+                self.connection.send(Message.from_task(self.task).as_json())
 
             case "completed":
                 self.update_task(state=TaskState.Completed)
                 self.update_worker(task_id=None, state=WorkerState.Idle)
+                if self.task:
+                    self.task_manager.cleanup_jobs(self.task)
+                self.connection.send(Message("ok").as_json())
 
+            case "all_jobs":
+                message = Message(
+                    "all_jobs",
+                    data=self.task_manager.get_all_jobs(),
+                )
+                self.connection.send(message.as_json())
             case "all_tasks":
                 message = Message(
                     "all_tasks",
@@ -101,7 +137,7 @@ class ClientHandler:
     def run(self) -> None:
         while True:
             try:
-                data = self.connection.recv()
+                data = self.connection.recv(self.buffer_size)
                 message = Message(**data)
                 self.handle_message(message)
 
@@ -109,6 +145,7 @@ class ClientHandler:
                 print(e)
                 self.update_worker(state="offline", task_id=None)
                 self.update_task(state="waiting")
+                self.update_job(state=JobState.Waiting)
                 break
 
         print(f"client {self.worker.name} disconnected")

@@ -12,8 +12,18 @@ class SerializedTask(TypedDict):
     id: str
     priority: int
     command: SerializedCommand
+    job_id: str
     state: str
     timestamp: Optional[float]
+
+
+class SerializedJob(TypedDict):
+    id: str
+    name: str
+    priority: int
+    timestamp: Optional[float]
+    state: str
+    tasks: list[SerializedTask]
 
 
 class SerializedWorker(TypedDict):
