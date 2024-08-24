@@ -4,12 +4,12 @@ import time
 
 from ..server.connection import Connection
 from ..shared.message import Message
-from ..shared.task import SerializedTask, Task, WorkerMetadata
+from ..shared.task import Task, TaskState, Worker
 
 
 def register_worker(connection: Connection) -> None:
     worker_name = socket.gethostname()
-    metadata = WorkerMetadata(None, worker_name, "idle", time.time(), None)
+    metadata = Worker(None, worker_name)
     msg = Message(message="register_worker", data=metadata.serialize())
     connection.send_recv(msg.as_json())
 
@@ -34,9 +34,12 @@ def start_worker():
                     print(f'message {message} has no field "data"')
                     continue
 
-                command = Task.from_json(SerializedTask(**message.data))
+                command = Task.deserialize(message.data)
+                if not command:
+                    continue
+
                 command.run()
-                connection.send(Message("finished").as_json())
+                connection.send(Message(TaskState.Completed).as_json())
 
             elif message.message == "no_tasks":
                 print("no task, waiting...")

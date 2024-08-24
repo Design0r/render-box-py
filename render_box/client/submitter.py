@@ -1,4 +1,3 @@
-from time import time
 from uuid import uuid4
 
 from render_box.shared.task import Task
@@ -16,11 +15,12 @@ def start_submitter(count: int = 1):
     for _ in range(count):
         try:
             command = TestCommand(5)
-            task = Task(uuid4(), 50, "waiting", time(), command)
+            task = Task(uuid4(), 50, command)
             message = Message.from_task(task)
 
-            connection.send_recv(message.as_json())
-            print(f"submitted {command}")
+            response = connection.send_recv(message.as_json())
+            print(response)
+            print("submitted command")
 
         except Exception as e:
             print(e)

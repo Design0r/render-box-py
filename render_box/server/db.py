@@ -102,7 +102,7 @@ def update_task(task: task.Task) -> None:
         conn.commit()
 
 
-def update_worker(worker: worker.WorkerMetadata) -> None:
+def update_worker(worker: worker.Worker) -> None:
     sql = SQLoader()
     query = sql.load("update_worker")
 
@@ -123,7 +123,7 @@ def update_worker(worker: worker.WorkerMetadata) -> None:
         conn.commit()
 
 
-def insert_worker(worker: worker.WorkerMetadata) -> None:
+def insert_worker(worker: worker.Worker) -> None:
     with DBConnection() as conn:
         conn.execute(
             "INSERT INTO workers(name, state, timestamp, task_id) VALUES (?, ?, ?, ?);",
@@ -154,12 +154,12 @@ def select_all_tasks() -> list[task.SerializedTask]:
     return tasks
 
 
-def select_all_worker() -> list[worker.WorkerMetadata]:
-    worker_list: list[worker.WorkerMetadata] = []
+def select_all_worker() -> list[worker.Worker]:
+    worker_list: list[worker.Worker] = []
     with DBConnection() as conn:
         cursor = conn.execute("SELECT * FROM workers;")
         for id, name, _, time, state, task_id in cursor.fetchall():
-            w = worker.WorkerMetadata(
+            w = worker.Worker(
                 id,
                 name=name,
                 state=state,
@@ -185,7 +185,7 @@ def init_db():
         return
 
     with DBConnection() as conn:
-        conn.execute(query)
+        conn.executescript(query)
         conn.commit()
 
         print(f"Created DB {path.stem}")

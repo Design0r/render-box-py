@@ -3,13 +3,13 @@ from typing import Optional
 from PySide6 import QtCore, QtGui, QtWidgets
 
 from render_box.monitor.controller import Controller
-from render_box.shared.task import SerializedTask, WorkerMetadata
+from render_box.shared.task import SerializedTask, Worker
 from render_box.shared.utils import format_timestamp
 
 STATE_COLORS = {
     "waiting": QtGui.QColor("white"),
     "progress": QtGui.QColor("green"),
-    "finished": QtGui.QColor(77, 134, 196),
+    "completed": QtGui.QColor(77, 134, 196),
     "idle": QtGui.QColor("white"),
     "working": QtGui.QColor("green"),
     "offline": QtGui.QColor(120, 120, 120),
@@ -131,7 +131,7 @@ class WorkerModel(QtGui.QStandardItemModel):
         for idx, label in enumerate(self.column_labels):
             self.setHeaderData(idx, QtCore.Qt.Orientation.Horizontal, label)
 
-    def add_row(self, worker: WorkerMetadata) -> None:
+    def add_row(self, worker: Worker) -> None:
         row_idx = self.rowCount()
         bg_col = BG_COLORS["light"] if row_idx % 2 == 0 else BG_COLORS["dark"]
         columns: tuple[str, ...] = (

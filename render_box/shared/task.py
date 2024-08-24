@@ -10,8 +10,8 @@ from uuid import UUID, uuid4
 from render_box.server import db
 from render_box.shared.commands import CommandManager
 
-from .serialize import Command, Serializable, SerializedTask
-from .worker import WorkerMetadata
+from .serialize import Command, Serializable, SerializedTask, SerializedWorker
+from .worker import Worker
 
 
 class TaskState(StrEnum):
@@ -50,7 +50,10 @@ class Task(Serializable["Task", SerializedTask]):
         return task
 
     @classmethod
-    def deserialize(cls, data: SerializedTask) -> Optional[Task]:
+    def deserialize(cls, data: Optional[SerializedTask]) -> Optional[Task]:
+        if not data:
+            return
+
         command_type = CommandManager.get_command(data["command"]["name"])
 
         if not command_type:
@@ -77,7 +80,7 @@ class Task(Serializable["Task", SerializedTask]):
 
 
 class TaskManager:
-    worker: dict[str, WorkerMetadata] = {}
+    worker: dict[str, Worker] = {}
 
     def __init__(self, task: Optional[Task | Iterable[Task]] = None) -> None:
         if task:
@@ -104,18 +107,21 @@ class TaskManager:
     def create_task(cls, command: Command, priority: int = 50) -> Task:
         return Task(uuid4(), priority, command)
 
-    def register_worker(self, worker: WorkerMetadata) -> None:
+    def register_worker(self, worker: Worker) -> None:
         self.worker[worker.name] = worker
         db.insert_worker(worker)
 
     def get_all_tasks(self) -> list[SerializedTask]:
         return db.select_all_tasks()
 
-    def get_all_worker(self) -> list[WorkerMetadata]:
+    def get_all_worker(self) -> list[Worker]:
         return db.select_all_worker()
+
+    def get_all_worker_dict(self) -> list[SerializedWorker]:
+        return [w.serialize() for w in db.select_all_worker()]
 
     def update_task(self, task: Task) -> None:
         db.update_task(task)
 
-    def update_worker(self, worker: WorkerMetadata) -> None:
+    def update_worker(self, worker: Worker) -> None:
         db.update_worker(worker)

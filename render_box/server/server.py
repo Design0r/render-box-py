@@ -1,13 +1,13 @@
 import socket
-import time
 from threading import Thread
 from typing import Any, Optional
 
 from render_box.server import db
+from render_box.shared.worker import WorkerState
 
 from ..server.connection import Connection
 from ..shared.message import Message
-from ..shared.task import SerializedTask, Task, TaskManager, WorkerMetadata
+from ..shared.task import Task, TaskManager, TaskState, Worker
 
 
 class CloseConnectionException(Exception): ...
@@ -17,9 +17,7 @@ class ClientHandler:
     def __init__(self, connection: Connection, task_manager: TaskManager) -> None:
         self.connection = connection
         self.task_manager = task_manager
-        self.worker = WorkerMetadata(
-            len(self.task_manager.worker) + 1, "unknown", "idle", time.time(), None
-        )
+        self.worker = Worker(len(self.task_manager.worker) + 1, "unknown")
         self.task: Optional[Task] = None
 
         ip, port = connection.socket.getpeername()
@@ -35,15 +33,18 @@ class ClientHandler:
     def update_task(self, **kwargs: Any) -> None:
         if not self.task:
             return
-        for k, v in kwargs:
-            setattr(self.worker, k, v)
+        for k, v in kwargs.items():
+            setattr(self.task, k, v)
 
         self.task_manager.update_task(self.task)
 
     def handle_message(self, message: Message) -> None:
         match message.message:
             case "register_worker":
-                worker = WorkerMetadata(**message.data)
+                worker = Worker.deserialize(message.data)
+                if not worker:
+                    return
+
                 registered_worker = self.task_manager.worker.get(worker.name)
                 if registered_worker:
                     self.worker = registered_worker
@@ -54,8 +55,9 @@ class ClientHandler:
                 self.connection.send(Message("success").as_json())
 
             case "task":
-                data = SerializedTask(**message.data)
-                task = Task.from_json(data)
+                task = Task.deserialize(message.data)
+                if not task:
+                    return
                 self.task_manager.add_task(task)
                 self.connection.send(Message("task_created").as_json())
 
@@ -71,9 +73,9 @@ class ClientHandler:
                 print(f"sending task to {self.worker.name}")
                 self.connection.send(message.as_json())
 
-            case "finished":
-                self.update_task(state="finished")
-                self.update_worker(task_id=None, state="idle")
+            case "completed":
+                self.update_task(state=TaskState.Completed)
+                self.update_worker(task_id=None, state=WorkerState.Idle)
 
             case "all_tasks":
                 message = Message(
@@ -85,7 +87,7 @@ class ClientHandler:
             case "all_workers":
                 message = Message(
                     "all_worker",
-                    data=self.task_manager.get_all_worker(),
+                    data=self.task_manager.get_all_worker_dict(),
                 )
                 self.connection.send(message.as_json())
 

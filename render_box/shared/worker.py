@@ -19,9 +19,9 @@ class Worker(Serializable["Worker", SerializedWorker]):
         self,
         id: Optional[int],
         name: str,
-        task_id: Optional[str],
         state: WorkerState = WorkerState.Idle,
         timestamp: Optional[float] = None,
+        task_id: Optional[str] = None,
     ) -> None:
         self.id = id
         self.name = name
@@ -33,7 +33,9 @@ class Worker(Serializable["Worker", SerializedWorker]):
         return self.__dict__
 
     @classmethod
-    def deserialize(cls, data: SerializedWorker) -> Optional[Worker]:
+    def deserialize(cls, data: Optional[SerializedWorker]) -> Optional[Worker]:
+        if not data:
+            return
         return Worker(
             id=data["id"],
             name=data["name"],

@@ -5,6 +5,7 @@ import time
 from typing import Any, Optional, Type
 
 from render_box.shared.serialize import Command, SerializedCommand
+from render_box.shared.utils import class_name_from_repr
 
 
 class CommandManager:
@@ -39,7 +40,7 @@ class TestCommand(Command):
         print(f"finished command {self}")
 
     def serialize(self) -> SerializedCommand:
-        return {"name": self.__qualname__, "data": self.__dict__}
+        return {"name": class_name_from_repr(self.__repr__()), "data": self.__dict__}
 
     @classmethod
     def deserialize(cls, data: SerializedCommand) -> Optional[TestCommand]:
