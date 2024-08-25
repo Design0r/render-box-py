@@ -116,7 +116,7 @@ class ClientHandler:
             case "all_tasks":
                 message = Message(
                     "all_tasks",
-                    data=self.task_manager.get_all_tasks(),
+                    data=self.task_manager.get_all_tasks(message.data),
                 )
                 self.connection.send(message.as_json())
 

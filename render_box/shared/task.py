@@ -130,8 +130,8 @@ class TaskManager:
         self.worker[worker.name] = worker
         db.insert_worker(worker)
 
-    def get_all_tasks(self) -> list[SerializedTask]:
-        return db.select_all_tasks()
+    def get_all_tasks(self, job_id: str) -> list[SerializedTask]:
+        return db.select_all_tasks(job_id)
 
     def get_all_jobs(self) -> list[SerializedJob]:
         return db.select_all_jobs()

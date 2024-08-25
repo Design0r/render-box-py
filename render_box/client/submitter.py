@@ -1,3 +1,4 @@
+import uuid
 from random import randint
 
 from render_box.shared.job import Job
@@ -13,9 +14,9 @@ def start_submitter(count: int = 1):
     server_address = ("localhost", 65432)
     connection.connect(server_address)
 
-    for i in range(count):
+    for _ in range(count):
         try:
-            job = Job(f"Job {i}")
+            job = Job(f"Job {uuid.uuid4()}")
             for i in range(randint(1, 10)):
                 task = Task(TestCommand((i // 2) + 1))
                 job.add_task(task)

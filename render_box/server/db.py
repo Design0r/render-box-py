@@ -219,10 +219,10 @@ def insert_worker(worker: worker.Worker) -> None:
         conn.commit()
 
 
-def select_all_tasks() -> list[task.SerializedTask]:
+def select_all_tasks(job_id: str) -> list[task.SerializedTask]:
     tasks: list[task.SerializedTask] = []
     with DBConnection() as conn:
-        cursor = conn.execute("SELECT * FROM tasks;")
+        cursor = conn.execute("SELECT * FROM tasks WHERE job_id = ?", (job_id,))
         for row in cursor.fetchall():
             id, job_id, prio, data, state, time = row
             t = task.SerializedTask(

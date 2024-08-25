@@ -10,8 +10,8 @@ class Controller:
         server_address = ("localhost", 65432)
         self.connection.connect(server_address)
 
-    def get_tasks(self) -> dict[str, SerializedTask]:
-        msg = Message("all_tasks")
+    def get_tasks(self, job_id: str) -> dict[str, SerializedTask]:
+        msg = Message("all_tasks", data=job_id)
         data: dict[str, list[SerializedTask]] = self.connection.send_recv(
             msg.as_json(), buffer_size=100000
         )

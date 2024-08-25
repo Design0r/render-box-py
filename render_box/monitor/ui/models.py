@@ -19,7 +19,7 @@ BG_COLORS = {"dark": QtGui.QColor(20, 20, 20), "light": QtGui.QColor(40, 40, 40)
 
 
 class JobModel(QtGui.QStandardItemModel):
-    column_labels = ("Name", "Priority", "State", "Timestamp")
+    column_labels = ("Name", "Priority", "State", "Timestamp", "ID")
 
     def __init__(self, controller: Controller, parent: Optional[QtCore.QObject] = None):
         super().__init__(parent=parent)
@@ -48,6 +48,7 @@ class JobModel(QtGui.QStandardItemModel):
             str(job["priority"]),
             job["state"],
             format_timestamp(job["timestamp"]),
+            job["id"],
         )
         row: list[QtGui.QStandardItem] = []
         for col in col_list:
@@ -91,11 +92,12 @@ class JobModel(QtGui.QStandardItemModel):
 
 
 class TaskModel(QtGui.QStandardItemModel):
-    column_labels = ("ID", "Priority", "State", "Tiemstamp", "Command")
+    column_labels = ("Priority", "State", "Timestamp", "Command", "ID")
 
     def __init__(self, controller: Controller, parent: Optional[QtCore.QObject] = None):
         super().__init__(parent=parent)
         self.controller = controller
+        self.job_id: Optional[str] = None
         self._set_column_headers()
         self.set_column_content()
 
@@ -116,11 +118,11 @@ class TaskModel(QtGui.QStandardItemModel):
         row_idx = self.rowCount()
         bg_col = BG_COLORS["light"] if row_idx % 2 == 0 else BG_COLORS["dark"]
         col_list: tuple[str, ...] = (
-            str(task["id"]),
             str(task["priority"]),
             task["state"],
             format_timestamp(task["timestamp"]),
             task["command"]["name"],
+            str(task["id"]),
         )
         row: list[QtGui.QStandardItem] = []
         for col in col_list:
@@ -133,24 +135,37 @@ class TaskModel(QtGui.QStandardItemModel):
         self.appendRow(row)
 
     def set_column_content(self):
-        tasks = self.controller.get_tasks()
+        if not self.job_id:
+            return
+        tasks = self.controller.get_tasks(self.job_id)
         for task in tasks.values():
             self.add_row(task)
 
     def refresh(self) -> None:
-        tasks = self.controller.get_tasks()
+        self.clear()
+        self._set_column_headers()
+        self.set_column_content()
+        return
+
+        if not self.job_id:
+            return
+
+        tasks = self.controller.get_tasks(self.job_id)
         current_row_count = self.rowCount()
 
         seen: set[str] = set()
         for row in range(current_row_count):
-            task_id = self.item(row, 0).text()
+            task_item = self.item(row, 4)
+            if not task_item:
+                continue
+            task_id = task_item.text()
             seen.add(task_id)
             task = tasks.get(task_id)
             if not task:
                 self.removeRow(row)
                 continue
 
-            status_item = self.item(row, 2)
+            status_item = self.item(row, 1)
             task_state = task.get("state", "")
             if status_item.text() != task_state:
                 status_item.setText(task_state)
@@ -161,6 +176,17 @@ class TaskModel(QtGui.QStandardItemModel):
                 continue
             self.add_row(task)
             self.set_row_color(STATE_COLORS[task["state"]], self.rowCount() - 1)
+
+    def on_job_change(
+        self, model: JobModel, selection: QtCore.QItemSelectionModel
+    ) -> None:
+        selected_row = [
+            model.itemFromIndex(index) for index in selection.selectedIndexes()
+        ]
+        if not selected_row:
+            return
+        self.job_id = selected_row[-1].text()
+        self.refresh()
 
 
 class WorkerModel(QtGui.QStandardItemModel):
@@ -217,7 +243,10 @@ class WorkerModel(QtGui.QStandardItemModel):
 
         seen: set[str] = set()
         for row in range(current_row_count):
-            worker_id = self.item(row, 0).text()
+            worker_item = self.item(row, 0)
+            if not worker_item:
+                continue
+            worker_id = worker_item.text()
             seen.add(worker_id)
             worker = workers.get(worker_id)
             if not worker:

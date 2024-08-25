@@ -100,6 +100,18 @@ class Window(QtWidgets.QWidget):
         self.main_layout.addWidget(self.h_split)
 
     def _init_signals(self) -> None:
+        selection_model = self.jobs.selectionModel()
+        selection_model.selectionChanged.connect(
+            lambda: self.task_model.on_job_change(self.job_model, selection_model)
+        )
+        first_row = self.job_model.index(0, 0)
+        selection_model.select(
+            first_row,
+            QtCore.QItemSelectionModel.SelectionFlag.Select
+            | QtCore.QItemSelectionModel.SelectionFlag.Rows,
+        )
+        self.jobs.setCurrentIndex(first_row)
+
         self.timer = QtCore.QTimer(self)
         self.timer.timeout.connect(self.task_model.refresh)
         self.timer.timeout.connect(self.worker_model.refresh)
