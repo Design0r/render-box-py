@@ -105,6 +105,7 @@ class ClientHandler:
                 self.update_worker(task_id=None, state=WorkerState.Idle)
                 if self.task:
                     self.task_manager.cleanup_jobs(self.task)
+                    self.job = self.task_manager.get_job_by_task(self.task)
                 self.connection.send(Message("ok").as_json())
 
             case "all_jobs":
@@ -113,6 +114,7 @@ class ClientHandler:
                     data=self.task_manager.get_all_jobs(),
                 )
                 self.connection.send(message.as_json())
+
             case "all_tasks":
                 message = Message(
                     "all_tasks",
@@ -144,8 +146,10 @@ class ClientHandler:
             except Exception as e:
                 print(e)
                 self.update_worker(state="offline", task_id=None)
-                self.update_task(state="waiting")
-                self.update_job(state=JobState.Waiting)
+                if self.task and self.task.state == TaskState.Progress:
+                    self.update_task(state="waiting")
+                if self.job and not self.job.state == JobState.Completed:
+                    self.update_job(state=JobState.Waiting)
                 break
 
         print(f"client {self.worker.name} disconnected")

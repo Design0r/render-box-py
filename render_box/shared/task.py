@@ -153,3 +153,10 @@ class TaskManager:
 
     def cleanup_jobs(self, task: Task) -> None:
         db.cleanup_completed_jobs(str(task.id))
+
+    def get_job_by_task(self, task: Task) -> Optional[job.Job]:
+        ser_job = db.select_job(str(task.id))
+        if not ser_job:
+            return
+
+        return job.Job.deserialize(ser_job)

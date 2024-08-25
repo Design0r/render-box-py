@@ -1,10 +1,10 @@
-from typing import Optional
+from abc import abstractmethod
+from typing import Iterable, Optional, override
 
 from PySide6 import QtCore, QtGui
 
 from render_box.monitor.controller import Controller
-from render_box.shared.serialize import SerializedJob
-from render_box.shared.task import SerializedTask, Worker
+from render_box.shared.serialize import SerializedJob, SerializedTask, SerializedWorker
 from render_box.shared.utils import format_timestamp
 
 STATE_COLORS = {
@@ -18,8 +18,8 @@ STATE_COLORS = {
 BG_COLORS = {"dark": QtGui.QColor(20, 20, 20), "light": QtGui.QColor(40, 40, 40)}
 
 
-class JobModel(QtGui.QStandardItemModel):
-    column_labels = ("Name", "Priority", "State", "Timestamp", "ID")
+class BaseModel(QtGui.QStandardItemModel):
+    column_labels = ("",)
 
     def __init__(self, controller: Controller, parent: Optional[QtCore.QObject] = None):
         super().__init__(parent=parent)
@@ -32,7 +32,7 @@ class JobModel(QtGui.QStandardItemModel):
         for idx, label in enumerate(self.column_labels):
             self.setHeaderData(idx, QtCore.Qt.Orientation.Horizontal, label)
 
-    def set_row_color(self, color: QtGui.QColor, row: int) -> None:
+    def _set_row_color(self, color: QtGui.QColor, row: int) -> None:
         bg_col = BG_COLORS["light"] if row % 2 == 0 else BG_COLORS["dark"]
         for col in range(self.columnCount()):
             item = self.item(row, col)
@@ -40,31 +40,48 @@ class JobModel(QtGui.QStandardItemModel):
                 item.setForeground(color)
                 item.setBackground(bg_col)
 
-    def add_row(self, job: SerializedJob) -> None:
+    def _add_row(self, row_content: Iterable[str], state: str) -> None:
         row_idx = self.rowCount()
         bg_col = BG_COLORS["light"] if row_idx % 2 == 0 else BG_COLORS["dark"]
-        col_list: tuple[str, ...] = (
-            str(job["name"]),
-            str(job["priority"]),
-            job["state"],
-            format_timestamp(job["timestamp"]),
-            job["id"],
-        )
         row: list[QtGui.QStandardItem] = []
-        for col in col_list:
+        for col in row_content:
             item = QtGui.QStandardItem(col)
             item.setEditable(False)
-            item.setForeground(STATE_COLORS[job["state"]])
+            item.setForeground(STATE_COLORS[state])
             item.setBackground(bg_col)
             row.append(item)
 
         self.appendRow(row)
 
+    @abstractmethod
+    def set_column_content(self): ...
+
+    @abstractmethod
+    def refresh(self) -> None: ...
+
+
+class JobModel(BaseModel):
+    column_labels = ("Name", "Priority", "State", "Timestamp", "ID")
+
+    def __init__(self, controller: Controller, parent: Optional[QtCore.QObject] = None):
+        super().__init__(controller, parent=parent)
+
+    def get_row_content_from_job(self, job: SerializedJob) -> Iterable[str]:
+        return (
+            job["name"],
+            str(job["priority"]),
+            job["state"],
+            format_timestamp(job["timestamp"]),
+            job["id"],
+        )
+
+    @override
     def set_column_content(self):
         jobs = self.controller.get_jobs()
         for job in jobs.values():
-            self.add_row(job)
+            self._add_row(self.get_row_content_from_job(job), job["state"])
 
+    @override
     def refresh(self) -> None:
         jobs = self.controller.get_jobs()
         current_row_count = self.rowCount()
@@ -82,100 +99,45 @@ class JobModel(QtGui.QStandardItemModel):
             task_state = job.get("state", "")
             if status_item.text() != task_state:
                 status_item.setText(task_state)
-                self.set_row_color(STATE_COLORS[task_state], row)
+                self._set_row_color(STATE_COLORS[task_state], row)
 
         for id, job in jobs.items():
             if id in seen:
                 continue
-            self.add_row(job)
-            self.set_row_color(STATE_COLORS[job["state"]], self.rowCount() - 1)
+            self._add_row(self.get_row_content_from_job(job), job["state"])
+            self._set_row_color(STATE_COLORS[job["state"]], self.rowCount() - 1)
 
 
-class TaskModel(QtGui.QStandardItemModel):
+class TaskModel(BaseModel):
     column_labels = ("Priority", "State", "Timestamp", "Command", "ID")
 
     def __init__(self, controller: Controller, parent: Optional[QtCore.QObject] = None):
-        super().__init__(parent=parent)
-        self.controller = controller
         self.job_id: Optional[str] = None
-        self._set_column_headers()
-        self.set_column_content()
+        super().__init__(controller, parent=parent)
 
-    def _set_column_headers(self) -> None:
-        self.setColumnCount(len(self.column_labels))
-        for idx, label in enumerate(self.column_labels):
-            self.setHeaderData(idx, QtCore.Qt.Orientation.Horizontal, label)
-
-    def set_row_color(self, color: QtGui.QColor, row: int) -> None:
-        bg_col = BG_COLORS["light"] if row % 2 == 0 else BG_COLORS["dark"]
-        for col in range(self.columnCount()):
-            item = self.item(row, col)
-            if item:
-                item.setForeground(color)
-                item.setBackground(bg_col)
-
-    def add_row(self, task: SerializedTask) -> None:
-        row_idx = self.rowCount()
-        bg_col = BG_COLORS["light"] if row_idx % 2 == 0 else BG_COLORS["dark"]
-        col_list: tuple[str, ...] = (
+    def get_row_content_from_task(self, task: SerializedTask) -> Iterable[str]:
+        return (
             str(task["priority"]),
             task["state"],
             format_timestamp(task["timestamp"]),
             task["command"]["name"],
-            str(task["id"]),
+            task["id"],
         )
-        row: list[QtGui.QStandardItem] = []
-        for col in col_list:
-            item = QtGui.QStandardItem(col)
-            item.setEditable(False)
-            item.setForeground(STATE_COLORS[task["state"]])
-            item.setBackground(bg_col)
-            row.append(item)
 
-        self.appendRow(row)
-
+    @override
     def set_column_content(self):
         if not self.job_id:
             return
         tasks = self.controller.get_tasks(self.job_id)
         for task in tasks.values():
-            self.add_row(task)
+            self._add_row(self.get_row_content_from_task(task), task["state"])
 
+    @override
     def refresh(self) -> None:
         self.clear()
         self._set_column_headers()
         self.set_column_content()
         return
-
-        if not self.job_id:
-            return
-
-        tasks = self.controller.get_tasks(self.job_id)
-        current_row_count = self.rowCount()
-
-        seen: set[str] = set()
-        for row in range(current_row_count):
-            task_item = self.item(row, 4)
-            if not task_item:
-                continue
-            task_id = task_item.text()
-            seen.add(task_id)
-            task = tasks.get(task_id)
-            if not task:
-                self.removeRow(row)
-                continue
-
-            status_item = self.item(row, 1)
-            task_state = task.get("state", "")
-            if status_item.text() != task_state:
-                status_item.setText(task_state)
-                self.set_row_color(STATE_COLORS[task_state], row)
-
-        for id, task in tasks.items():
-            if id in seen:
-                continue
-            self.add_row(task)
-            self.set_row_color(STATE_COLORS[task["state"]], self.rowCount() - 1)
 
     def on_job_change(
         self, model: JobModel, selection: QtCore.QItemSelectionModel
@@ -189,54 +151,28 @@ class TaskModel(QtGui.QStandardItemModel):
         self.refresh()
 
 
-class WorkerModel(QtGui.QStandardItemModel):
+class WorkerModel(BaseModel):
     column_labels = ("ID", "Name", "State", "Timestamp", "Task")
 
     def __init__(self, controller: Controller, parent: Optional[QtCore.QObject] = None):
-        super().__init__(parent=parent)
-        self.controller = controller
-        self._set_column_headers()
-        self.set_column_content()
+        super().__init__(controller, parent=parent)
 
-    def _set_column_headers(self) -> None:
-        self.setColumnCount(len(self.column_labels))
-        for idx, label in enumerate(self.column_labels):
-            self.setHeaderData(idx, QtCore.Qt.Orientation.Horizontal, label)
-
-    def add_row(self, worker: Worker) -> None:
-        row_idx = self.rowCount()
-        bg_col = BG_COLORS["light"] if row_idx % 2 == 0 else BG_COLORS["dark"]
-        columns: tuple[str, ...] = (
-            str(worker.id),
-            worker.name,
-            worker.state,
-            format_timestamp(worker.timestamp),
-            str(worker.task_id) or "",
+    def get_row_content_from_worker(self, worker: SerializedWorker) -> Iterable[str]:
+        return (
+            str(worker["id"]),
+            worker["name"],
+            worker["state"],
+            format_timestamp(worker["timestamp"]),
+            worker.get("task_id") or "",
         )
 
-        row: list[QtGui.QStandardItem] = []
-        for col in columns:
-            item = QtGui.QStandardItem(col)
-            item.setEditable(False)
-            item.setForeground(STATE_COLORS[worker.state])
-            item.setBackground(bg_col)
-            row.append(item)
-
-        self.appendRow(row)
-
+    @override
     def set_column_content(self):
         workers = self.controller.get_workers()
         for worker in workers.values():
-            self.add_row(worker)
+            self._add_row(self.get_row_content_from_worker(worker), worker["state"])
 
-    def set_row_color(self, color: QtGui.QColor, row: int) -> None:
-        bg_col = BG_COLORS["light"] if row % 2 == 0 else BG_COLORS["dark"]
-        for col in range(self.columnCount()):
-            item = self.item(row, col)
-            if item:
-                item.setForeground(color)
-                item.setBackground(bg_col)
-
+    @override
     def refresh(self) -> None:
         workers = self.controller.get_workers()
         current_row_count = self.rowCount()
@@ -256,13 +192,16 @@ class WorkerModel(QtGui.QStandardItemModel):
             status_item = self.item(row, 2)
             task_item = self.item(row, 4)
 
-            if status_item.text() != worker.state or task_item.text() != worker.task_id:
-                status_item.setText(worker.state)
-                task_item.setText(str(worker.task_id))
+            if (
+                status_item.text() != worker["state"]
+                or task_item.text() != worker["task_id"]
+            ):
+                status_item.setText(worker["state"])
+                task_item.setText(str(worker["task_id"]))
 
-                self.set_row_color(STATE_COLORS[worker.state], row)
+                self._set_row_color(STATE_COLORS[worker["state"]], row)
 
         for id, worker in workers.items():
             if id in seen:
                 continue
-            self.add_row(worker)
+            self._add_row(self.get_row_content_from_worker(worker), worker["state"])
