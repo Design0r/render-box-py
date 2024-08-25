@@ -2,7 +2,7 @@
 
 A Work in Progress Render Farm Management System
 
-![image](docs/screenshot.jpg)
+![image](docs/screenshot.png)
 
 RenderBox ist Split up in several Components:
 
