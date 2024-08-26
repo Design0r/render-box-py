@@ -34,8 +34,9 @@ class BaseModel(QtGui.QStandardItemModel):
     def _set_row_color(self, color: QtGui.QColor, row: int) -> None:
         for col in range(self.columnCount()):
             item = self.item(row, col)
-            if item:
-                item.setForeground(color)
+            if not item:
+                continue
+            item.setForeground(color)
 
     def _add_row(self, row_content: Iterable[str], state: str) -> None:
         row: list[QtGui.QStandardItem] = []
@@ -90,16 +91,15 @@ class JobModel(BaseModel):
                 continue
 
             status_item = self.item(row, 2)
-            task_state = job.get("state", "")
-            if status_item.text() != task_state:
-                status_item.setText(task_state)
-                self._set_row_color(STATE_COLORS[task_state], row)
+            job_state = job.get("state", "")
+            if status_item.text() != job_state:
+                status_item.setText(job_state)
+                self._set_row_color(STATE_COLORS[job_state], row)
 
         for id, job in jobs.items():
             if id in seen:
                 continue
             self._add_row(self.get_row_content_from_job(job), job["state"])
-            self._set_row_color(STATE_COLORS[job["state"]], self.rowCount() - 1)
 
 
 class TaskModel(BaseModel):
@@ -128,10 +128,34 @@ class TaskModel(BaseModel):
 
     @override
     def refresh(self) -> None:
-        self.clear()
-        self._set_column_headers()
-        self.set_column_content()
-        return
+        if not self.job_id:
+            return
+
+        tasks = self.controller.get_tasks(self.job_id)
+        current_row_count = self.rowCount()
+
+        seen: set[str] = set()
+        for row in range(current_row_count):
+            task_item = self.item(row, 4)
+            if not task_item:
+                continue
+            task_name = task_item.text()
+            seen.add(task_name)
+            task = tasks.get(task_name)
+            if not task:
+                self.removeRow(row)
+                continue
+
+            state_item = self.item(row, 1)
+            task_state = task.get("state", "")
+            if state_item.text() != task_state:
+                state_item.setText(task_state)
+                self._set_row_color(STATE_COLORS[task_state], row)
+
+        for id, task in tasks.items():
+            if id in seen:
+                continue
+            self._add_row(self.get_row_content_from_task(task), task["state"])
 
     def on_job_change(
         self, model: JobModel, selection: QtCore.QItemSelectionModel
@@ -142,7 +166,9 @@ class TaskModel(BaseModel):
         if not selected_row:
             return
         self.job_id = selected_row[-1].text()
-        self.refresh()
+        self.clear()
+        self._set_column_headers()
+        self.set_column_content()
 
 
 class WorkerModel(BaseModel):
