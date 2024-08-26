@@ -15,7 +15,6 @@ STATE_COLORS = {
     "working": QtGui.QColor("green"),
     "offline": QtGui.QColor(120, 120, 120),
 }
-BG_COLORS = {"dark": QtGui.QColor(20, 20, 20), "light": QtGui.QColor(40, 40, 40)}
 
 
 class BaseModel(QtGui.QStandardItemModel):
@@ -33,22 +32,17 @@ class BaseModel(QtGui.QStandardItemModel):
             self.setHeaderData(idx, QtCore.Qt.Orientation.Horizontal, label)
 
     def _set_row_color(self, color: QtGui.QColor, row: int) -> None:
-        bg_col = BG_COLORS["light"] if row % 2 == 0 else BG_COLORS["dark"]
         for col in range(self.columnCount()):
             item = self.item(row, col)
             if item:
                 item.setForeground(color)
-                item.setBackground(bg_col)
 
     def _add_row(self, row_content: Iterable[str], state: str) -> None:
-        row_idx = self.rowCount()
-        bg_col = BG_COLORS["light"] if row_idx % 2 == 0 else BG_COLORS["dark"]
         row: list[QtGui.QStandardItem] = []
         for col in row_content:
             item = QtGui.QStandardItem(col)
             item.setEditable(False)
             item.setForeground(STATE_COLORS[state])
-            item.setBackground(bg_col)
             row.append(item)
 
         self.appendRow(row)

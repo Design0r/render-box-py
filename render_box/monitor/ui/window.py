@@ -47,13 +47,16 @@ class TableView(QtWidgets.QTableView):
     def __init__(self):
         super().__init__()
         self.verticalHeader().setVisible(False)
-        # self.setShowGrid(False)
+        self.setShowGrid(False)
         self.setSelectionBehavior(
             QtWidgets.QAbstractItemView.SelectionBehavior.SelectRows
         )
         self.horizontalHeader().setSectionResizeMode(
-            QtWidgets.QHeaderView.ResizeMode.Stretch
+            QtWidgets.QHeaderView.ResizeMode.Interactive
         )
+        self.horizontalHeader().setStretchLastSection(True)
+        self.setAlternatingRowColors(True)
+        self.setSortingEnabled(True)
 
 
 class Window(QtWidgets.QWidget):
@@ -97,6 +100,7 @@ class Window(QtWidgets.QWidget):
 
     def _init_layouts(self) -> None:
         self.main_layout = QtWidgets.QVBoxLayout(self)
+        self.main_layout.setContentsMargins(0, 0, 0, 0)
         self.main_layout.addWidget(self.h_split)
 
     def _init_signals(self) -> None:

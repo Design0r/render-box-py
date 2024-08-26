@@ -4,14 +4,15 @@ import time
 
 from ..server.connection import Connection
 from ..shared.message import Message
-from ..shared.task import Task, TaskState, Worker
+from ..shared.task import Task, TaskState
+from ..shared.worker import Worker
 
 
 def register_worker(connection: Connection) -> None:
     worker_name = socket.gethostname()
     metadata = Worker(None, worker_name)
-    msg = Message(message="register_worker", data=metadata.serialize())
-    connection.send_recv(msg.as_json())
+    msg = Message(message="register_worker", data=metadata.serialize()).as_json()
+    connection.send_recv(msg)
 
 
 def start_worker():
@@ -25,8 +26,8 @@ def start_worker():
         try:
             start_time = time.perf_counter()
 
-            message = Message("get_task")
-            response = connection.send_recv(message.as_json())
+            message = Message("get_task").as_json()
+            response = connection.send_recv(message)
             message = Message(**response)
 
             if message.message == "task":
@@ -44,9 +45,10 @@ def start_worker():
             elif message.message == "no_tasks":
                 print("no task, waiting...")
                 time.sleep(2)
+                continue
 
             end_time = time.perf_counter()
-            print(f"Task finished in {end_time - start_time:.2f}\n")
+            print(f"Task finished in {end_time - start_time:.2f}s\n")
 
         except json.JSONDecodeError:
             print("connection to server lost")

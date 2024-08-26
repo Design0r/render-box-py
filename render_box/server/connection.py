@@ -20,6 +20,13 @@ class Connection:
 
         return json.loads(response)
 
+    def send_recv_dynamic(self, data: bytes) -> dict[Any, Any]:
+        self.send_buffer_size(len(data))
+        self.socket.sendall(data)
+        response = self.socket.recv(1024).decode("utf-8")
+
+        return json.loads(response)
+
     def recv(self, buffer_size: int = 1024) -> dict[Any, Any]:
         response = self.socket.recv(buffer_size).decode("utf-8")
         return json.loads(response)
