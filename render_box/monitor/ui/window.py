@@ -1,19 +1,9 @@
 from typing import Optional
 
-from PySide6 import QtCore, QtGui, QtWidgets
+from PySide6 import QtCore, QtWidgets
 
 from render_box.monitor.controller import Controller
 from render_box.monitor.ui.models import JobModel, TaskModel, WorkerModel
-
-STATE_COLORS = {
-    "waiting": QtGui.QColor("white"),
-    "progress": QtGui.QColor("green"),
-    "completed": QtGui.QColor(77, 134, 196),
-    "idle": QtGui.QColor("white"),
-    "working": QtGui.QColor("green"),
-    "offline": QtGui.QColor(120, 120, 120),
-}
-BG_COLORS = {"dark": QtGui.QColor(20, 20, 20), "light": QtGui.QColor(40, 40, 40)}
 
 
 class LabeledTable(QtWidgets.QWidget):
@@ -71,6 +61,7 @@ class Window(QtWidgets.QWidget):
         self._init_widgets()
         self._init_layouts()
         self._init_signals()
+        self.select_first_row()
 
     def _init_widgets(self) -> None:
         self.tasks = TableView()
@@ -108,6 +99,15 @@ class Window(QtWidgets.QWidget):
         selection_model.selectionChanged.connect(
             lambda: self.task_model.on_job_change(self.job_model, selection_model)
         )
+
+        self.timer = QtCore.QTimer(self)
+        self.timer.timeout.connect(self.task_model.refresh)
+        self.timer.timeout.connect(self.worker_model.refresh)
+        self.timer.timeout.connect(self.job_model.refresh)
+        self.timer.start(2000)
+
+    def select_first_row(self):
+        selection_model = self.jobs.selectionModel()
         first_row = self.job_model.index(0, 0)
         selection_model.select(
             first_row,
@@ -115,9 +115,3 @@ class Window(QtWidgets.QWidget):
             | QtCore.QItemSelectionModel.SelectionFlag.Rows,
         )
         self.jobs.setCurrentIndex(first_row)
-
-        self.timer = QtCore.QTimer(self)
-        self.timer.timeout.connect(self.task_model.refresh)
-        self.timer.timeout.connect(self.worker_model.refresh)
-        self.timer.timeout.connect(self.job_model.refresh)
-        self.timer.start(2000)
