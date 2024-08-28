@@ -16,7 +16,7 @@ class EventSystem:
 
     @classmethod
     def connect(cls, event: str, callable: Callback) -> None:
-        events = [e for e in cls._events if fnmatch(event, e) or fnmatch(e, event)]
+        events = (e for e in cls._events if fnmatch(event, e) or fnmatch(e, event))
 
         if not events:
             print(f"no matching event found for '{event}'")
@@ -32,7 +32,7 @@ class EventSystem:
 
     @classmethod
     def emit(cls, event: str, *args: Any, **kwargs: Any) -> None:
-        matched_events = [e for e in cls._events if fnmatch(e, event)]
+        matched_events = (e for e in cls._events if fnmatch(e, event))
 
         if not matched_events:
             print(f"no matching events found for {event}")
