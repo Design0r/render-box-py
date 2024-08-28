@@ -112,6 +112,7 @@ class TaskModel(BaseModel):
         self.job_id: Optional[str] = None
         super().__init__(controller, parent=parent)
         EventSystem.connect("models.tasks.refresh", self.refresh)
+        EventSystem.connect("tables.jobs.selection.changed", self.on_job_change)
 
     def get_row_content_from_task(self, task: SerializedTask) -> Iterable[str]:
         return (
@@ -161,14 +162,7 @@ class TaskModel(BaseModel):
                 continue
             self._add_row(self.get_row_content_from_task(task), task["state"])
 
-    def on_job_change(
-        self, model: JobModel, selection: QtCore.QItemSelectionModel
-    ) -> None:
-        selected_row = [
-            model.itemFromIndex(index) for index in selection.selectedIndexes()
-        ]
-        if not selected_row:
-            return
+    def on_job_change(self, selected_row: list[QtGui.QStandardItem]) -> None:
         self.job_id = selected_row[-1].text()
         self.clear()
         self._set_column_headers()

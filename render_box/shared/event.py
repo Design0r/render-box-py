@@ -16,31 +16,26 @@ class EventSystem:
 
     @classmethod
     def connect(cls, event: str, callable: Callback) -> None:
-        # Check if the event matches any registered wildcard event
-        matched_events = [
-            e for e in cls._events if fnmatch(event, e) or fnmatch(e, event)
-        ]
+        events = [e for e in cls._events if fnmatch(event, e) or fnmatch(e, event)]
 
-        if not matched_events:
-            print(
-                f"No matching wildcard event found for '{event}'. Please register the event or a matching wildcard."
-            )
+        if not events:
+            print(f"no matching event found for '{event}'")
             return
 
-        for matched_event in matched_events:
-            if callable in cls._events[matched_event]:
-                print(f"Callable already registered for event '{matched_event}'")
+        for e in events:
+            if callable in cls._events[e]:
+                print(f"callable already registered for event '{e}'")
                 return
 
-            cls._events[matched_event].append(callable)
-            print(f"Callable connected to event '{matched_event}'")
+            cls._events[e].append(callable)
+            print(f"callable connected to event '{e}'")
 
     @classmethod
     def emit(cls, event: str, *args: Any, **kwargs: Any) -> None:
         matched_events = [e for e in cls._events if fnmatch(e, event)]
 
         if not matched_events:
-            print(f"No matching events found for {event}")
+            print(f"no matching events found for {event}")
             return
 
         for matched_event in matched_events:
