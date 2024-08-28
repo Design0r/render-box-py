@@ -4,6 +4,7 @@ from typing import Iterable, Optional, override
 from PySide6 import QtCore, QtGui
 
 from render_box.monitor.controller import Controller
+from render_box.shared.event import EventSystem
 from render_box.shared.serialize import SerializedJob, SerializedTask, SerializedWorker
 from render_box.shared.utils import format_timestamp
 
@@ -22,6 +23,7 @@ class BaseModel(QtGui.QStandardItemModel):
 
     def __init__(self, controller: Controller, parent: Optional[QtCore.QObject] = None):
         super().__init__(parent=parent)
+        EventSystem.register_event("models.*.refresh")
         self.controller = controller
         self._set_column_headers()
         self.set_column_content()
@@ -60,6 +62,7 @@ class JobModel(BaseModel):
 
     def __init__(self, controller: Controller, parent: Optional[QtCore.QObject] = None):
         super().__init__(controller, parent=parent)
+        EventSystem.connect("models.jobs.refresh", self.refresh)
 
     def get_row_content_from_job(self, job: SerializedJob) -> Iterable[str]:
         return (
@@ -108,6 +111,7 @@ class TaskModel(BaseModel):
     def __init__(self, controller: Controller, parent: Optional[QtCore.QObject] = None):
         self.job_id: Optional[str] = None
         super().__init__(controller, parent=parent)
+        EventSystem.connect("models.tasks.refresh", self.refresh)
 
     def get_row_content_from_task(self, task: SerializedTask) -> Iterable[str]:
         return (
@@ -176,6 +180,7 @@ class WorkerModel(BaseModel):
 
     def __init__(self, controller: Controller, parent: Optional[QtCore.QObject] = None):
         super().__init__(controller, parent=parent)
+        EventSystem.connect("models.worker.refresh", self.refresh)
 
     def get_row_content_from_worker(self, worker: SerializedWorker) -> Iterable[str]:
         return (

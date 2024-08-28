@@ -4,6 +4,7 @@ from PySide6 import QtCore, QtWidgets
 
 from render_box.monitor.controller import Controller
 from render_box.monitor.ui.models import JobModel, TaskModel, WorkerModel
+from render_box.shared.event import EventSystem
 
 
 class LabeledTable(QtWidgets.QWidget):
@@ -101,9 +102,7 @@ class Window(QtWidgets.QWidget):
         )
 
         self.timer = QtCore.QTimer(self)
-        self.timer.timeout.connect(self.task_model.refresh)
-        self.timer.timeout.connect(self.worker_model.refresh)
-        self.timer.timeout.connect(self.job_model.refresh)
+        self.timer.timeout.connect(lambda: EventSystem.emit("models.*.refresh"))
         self.timer.start(2000)
 
     def select_first_row(self):
