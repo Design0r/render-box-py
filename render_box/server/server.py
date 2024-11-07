@@ -171,9 +171,7 @@ def start_server() -> None:
         try:
             connection = server_socket.accept()
             client_handler = ClientHandler(Connection(connection), job_manager)
-            thread = Thread(
-                target=client_handler.run,
-            )
+            thread = Thread(target=client_handler.run)
             thread.start()
         except socket.timeout:
             continue

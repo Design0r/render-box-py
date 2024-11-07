@@ -73,5 +73,8 @@ class Job(Serializable["Job", SerializedJob]):
         task.job_id = self.id
         self.tasks.append(task)
 
+    def __str__(self) -> str:
+        return f"Job {self.id}"
+
     def __repr__(self) -> str:
         return str(self.__dict__)
