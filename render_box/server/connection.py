@@ -11,8 +11,7 @@ class Connection:
 
     def send(self, data: bytes):
         header = len(data).to_bytes(4, "big")
-        self.socket.sendall(header)
-        self.socket.sendall(data)
+        self.socket.sendall(header + data)
 
     def send_recv(self, data: bytes) -> dict[Any, Any]:
         self.send(data)
