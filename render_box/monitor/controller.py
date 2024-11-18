@@ -11,24 +11,20 @@ class Controller:
 
     def get_tasks(self, job_id: str) -> dict[str, SerializedTask]:
         msg = Message("all_tasks", data=job_id)
-        data: dict[str, list[SerializedTask]] = self.connection.send_recv(
-            msg.as_json(), buffer_size=100000
-        )
+        data: dict[str, list[SerializedTask]] = self.connection.send_recv(msg.as_json())
 
         return {str(task["id"]): task for task in data["data"]}
 
     def get_workers(self) -> dict[str, SerializedWorker]:
         msg = Message("all_workers")
         data: dict[str, list[SerializedWorker]] = self.connection.send_recv(
-            msg.as_json(), buffer_size=10000
+            msg.as_json()
         )
 
         return {w["name"]: w for w in data["data"]}
 
     def get_jobs(self) -> dict[str, SerializedJob]:
         msg = Message("all_jobs")
-        data: dict[str, list[SerializedJob]] = self.connection.send_recv(
-            msg.as_json(), buffer_size=100000
-        )
+        data: dict[str, list[SerializedJob]] = self.connection.send_recv(msg.as_json())
 
         return {job["name"]: job for job in data["data"]}

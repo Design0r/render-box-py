@@ -23,9 +23,7 @@ def start_submitter(count: int = 1):
             message = Message.from_job(job)
             buffer = message.as_json()
 
-            connection.send_buffer_size(len(buffer))
             connection.send_recv(buffer)
-            connection.send_buffer_size(1024)
             print("submitted Job")
 
         except Exception as e:

@@ -76,7 +76,7 @@ wheels = [
 [[package]]
 name = "render-box-py"
 version = "0.1.0"
-source = { editable = "." }
+source = { virtual = "." }
 dependencies = [
     { name = "pyside6" },
 ]

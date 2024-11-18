@@ -4,35 +4,27 @@ import json
 import socket
 from typing import Any
 
-from render_box.shared.message import Message
-
 
 class Connection:
     def __init__(self, socket: socket.socket) -> None:
         self.socket = socket
 
     def send(self, data: bytes):
+        header = len(data).to_bytes(4, "big")
+        self.socket.sendall(header)
         self.socket.sendall(data)
 
-    def send_recv(self, data: bytes, buffer_size: int = 1024) -> dict[Any, Any]:
-        self.socket.sendall(data)
-        response = self.socket.recv(buffer_size).decode("utf-8")
+    def send_recv(self, data: bytes) -> dict[Any, Any]:
+        self.send(data)
+        response = self.recv()
 
+        return response
+
+    def recv(self) -> dict[Any, Any]:
+        header = self.socket.recv(4)
+        body_size = int.from_bytes(header, "big")
+        response = self.socket.recv(body_size).decode("utf-8")
         return json.loads(response)
-
-    def send_recv_dynamic(self, data: bytes) -> dict[Any, Any]:
-        self.send_buffer_size(len(data))
-        self.socket.sendall(data)
-        response = self.socket.recv(1024).decode("utf-8")
-
-        return json.loads(response)
-
-    def recv(self, buffer_size: int = 1024) -> dict[Any, Any]:
-        response = self.socket.recv(buffer_size).decode("utf-8")
-        return json.loads(response)
-
-    def send_buffer_size(self, size: int) -> None:
-        self.send_recv(Message("buffer_size", data=size).as_json())
 
     def close(self) -> None:
         self.socket.close()

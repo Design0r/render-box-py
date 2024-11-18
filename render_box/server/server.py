@@ -23,7 +23,6 @@ class ClientHandler:
         self.worker = Worker(len(self.job_manager.worker) + 1, "unknown")
         self.task: Optional[Task] = None
         self.job: Optional[Job] = None
-        self.buffer_size = 1024
 
         ip, port = connection.socket.getpeername()
         self.client_ip = f"{ip}:{port}"
@@ -136,15 +135,14 @@ class ClientHandler:
                 raise CloseConnectionException(self.worker.name)
 
             case _:
-                return
+                raise ValueError(f"unexpected message {message.message}")
 
     def run(self) -> None:
         while True:
             try:
-                data = self.connection.recv(self.buffer_size)
+                data = self.connection.recv()
                 message = Message(**data)
                 self.handle_message(message)
-
             except Exception as e:
                 print(e)
                 self.update_worker(state="offline", task_id=None)
