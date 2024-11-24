@@ -190,9 +190,7 @@ def update_worker(worker: worker.Worker) -> None:
 
 
 def update_job(job: job.Job) -> None:
-    sql = SQLoader()
-    query = sql.load("update_job")
-
+    query = SQLoader().load("update_job")
     if not query:
         return
 

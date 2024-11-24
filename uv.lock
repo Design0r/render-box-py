@@ -74,6 +74,19 @@ wheels = [
 ]
 
 [[package]]
+name = "pyside6-stubs"
+version = "6.4.2.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "mypy" },
+    { name = "pyside6" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/71/85/1c504346a5da5b69ba59a235a897430dc302b9d3c12c4d41a849e4b5aff4/PySide6-stubs-6.4.2.0.tar.gz", hash = "sha256:d5578eb1597d1c07831c899b35636410b08915a4695ce6e41cceb6707c400fcf", size = 433881 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/44/75/2e5f1bab9445805971d52563684a14fccf2a835b101f8f392db32cf631c5/PySide6_stubs-6.4.2.0-py3-none-any.whl", hash = "sha256:e825ded4b3555d540f297f405e3a9dc0943c032a96c53184cf644a8e4c4a6b0b", size = 469627 },
+]
+
+[[package]]
 name = "render-box-py"
 version = "0.1.0"
 source = { virtual = "." }
@@ -84,6 +97,7 @@ dependencies = [
 [package.dev-dependencies]
 dev = [
     { name = "mypy" },
+    { name = "pyside6-stubs" },
     { name = "ruff" },
 ]
 
@@ -93,6 +107,7 @@ requires-dist = [{ name = "pyside6", specifier = ">=6.7.2" }]
 [package.metadata.requires-dev]
 dev = [
     { name = "mypy", specifier = ">=1.11.1" },
+    { name = "pyside6-stubs", specifier = ">=6.4.2.0" },
     { name = "ruff", specifier = ">=0.6.1" },
 ]
 

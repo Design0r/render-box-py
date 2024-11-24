@@ -14,6 +14,9 @@ def start_submitter(count: int = 1):
     server_address = ("localhost", 65432)
     connection.connect(server_address)
 
+    m = Message("docs")
+    print(connection.send_recv(m.as_json()))
+
     for _ in range(count):
         try:
             job = Job(f"Job {uuid.uuid4()}")

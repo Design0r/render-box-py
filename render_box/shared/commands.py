@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import time
-from typing import Any, Optional, Type
+from typing import Optional, Type
 
 from render_box.shared.serialize import Command, SerializedCommand
 from render_box.shared.utils import class_name_from_repr
@@ -19,7 +19,7 @@ class CommandManager:
         return cmd_type
 
 
-def register_command(command: Type[Any]) -> Type[Any]:
+def register_command(command: Type[Command]) -> Type[Command]:
     cmd_name = command.__name__
     if cmd_name not in CommandManager.commands:
         CommandManager.commands[cmd_name] = command

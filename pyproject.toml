@@ -12,5 +12,6 @@ dependencies = [
 [tool.uv]
 dev-dependencies = [
     "mypy>=1.11.1",
+    "pyside6-stubs>=6.4.2.0",
     "ruff>=0.6.1",
 ]
