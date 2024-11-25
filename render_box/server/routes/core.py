@@ -9,7 +9,7 @@ if TYPE_CHECKING:
 core_router = MessageRouter("")
 
 
-@core_router.register("close")
+@core_router.register("connection.close")
 def close(ctx: "ClientHandler", message: Message):
     print(f"close message from {ctx.worker.name}")
     raise CloseConnectionException(ctx.worker.name)

@@ -52,7 +52,7 @@ def next_task(ctx: "ClientHandler", message: Message):
     ctx.update_worker(task_id=str(ctx.task.id), state="working")
     ctx.update_job(state=JobState.Progress)
     print(f"sending task to {ctx.worker.name}")
-    ctx.send(Message("tasks", ctx.task).as_json())
+    ctx.send(Message("tasks", ctx.task.serialize()).as_json())
 
 
 @task_router.register(".complete")

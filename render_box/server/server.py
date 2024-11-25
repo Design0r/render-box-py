@@ -52,6 +52,7 @@ class ClientHandler:
         self.job_manager.update_job(self.job)
 
     def handle_message(self, message: Message) -> None:
+        print(f"MSG: {message}")
         self.router.serve(self, message)
 
     def send(self, data: bytes):

@@ -4,14 +4,14 @@ import time
 
 from ..server.connection import Connection
 from ..shared.message import Message
-from ..shared.task import Task, TaskState
+from ..shared.task import Task
 from ..shared.worker import Worker
 
 
 def register_worker(connection: Connection) -> None:
     worker_name = socket.gethostname()
     metadata = Worker(None, worker_name)
-    msg = Message(message="worker.register", data=metadata.serialize()).as_json()
+    msg = Message(message="workers.register", data=metadata.serialize()).as_json()
     print(connection.send_recv(msg))
 
 
@@ -22,13 +22,14 @@ def start_worker():
 
     register_worker(connection)
 
+    next_msg = Message("tasks.next").as_json()
     while True:
         try:
             start_time = time.perf_counter()
 
-            message = Message("tasks.next").as_json()
-            response = connection.send_recv(message)
+            response = connection.send_recv(next_msg)
             message = Message(**response)
+            print(message)
 
             if message.data:
                 command = Task.deserialize(message.data)
@@ -36,7 +37,7 @@ def start_worker():
                     continue
 
                 command.run()
-                connection.send_recv(Message(TaskState.Completed).as_json())
+                connection.send_recv(Message("tasks.complete").as_json())
 
             else:
                 print("no task, waiting...")

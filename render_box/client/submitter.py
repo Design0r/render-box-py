@@ -23,16 +23,15 @@ def start_submitter(count: int = 1):
             for i in range(randint(1, 10)):
                 task = Task(TestCommand((i // 2) + 1))
                 job.add_task(task)
-            message = Message.from_job(job)
-            buffer = message.as_json()
+            message = Message("jobs.create", job.serialize())
 
-            connection.send_recv(buffer)
+            connection.send_recv(message.as_json())
             print("submitted Job")
 
         except Exception as e:
             print(e)
 
-    close_msg = Message("close")
+    close_msg = Message("connection.close")
     connection.send(close_msg.as_json())
     connection.close()
 
