@@ -11,8 +11,8 @@ from ..shared.worker import Worker
 def register_worker(connection: Connection) -> None:
     worker_name = socket.gethostname()
     metadata = Worker(None, worker_name)
-    msg = Message(message="register_worker", data=metadata.serialize()).as_json()
-    connection.send_recv(msg)
+    msg = Message(message="worker.register", data=metadata.serialize()).as_json()
+    print(connection.send_recv(msg))
 
 
 def start_worker():
@@ -26,15 +26,11 @@ def start_worker():
         try:
             start_time = time.perf_counter()
 
-            message = Message("get_task").as_json()
+            message = Message("tasks.next").as_json()
             response = connection.send_recv(message)
             message = Message(**response)
 
-            if message.message == "task":
-                if not message.data:
-                    print(f'message {message} has no field "data"')
-                    continue
-
+            if message.data:
                 command = Task.deserialize(message.data)
                 if not command:
                     continue
@@ -42,7 +38,7 @@ def start_worker():
                 command.run()
                 connection.send_recv(Message(TaskState.Completed).as_json())
 
-            elif message.message == "no_tasks":
+            else:
                 print("no task, waiting...")
                 time.sleep(2)
                 continue

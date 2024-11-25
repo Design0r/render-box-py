@@ -44,7 +44,7 @@ def create_task(ctx: "ClientHandler", message: Message):
 def next_task(ctx: "ClientHandler", message: Message):
     result = ctx.job_manager.pop_task()
     if not result:
-        ctx.send(Message("no_tasks").as_json())
+        ctx.send(Message("tasks").as_json())
         print(f"{ctx.worker.name} asked for task, none exist...")
         return
     ctx.task, ctx.job = result
@@ -52,7 +52,7 @@ def next_task(ctx: "ClientHandler", message: Message):
     ctx.update_worker(task_id=str(ctx.task.id), state="working")
     ctx.update_job(state=JobState.Progress)
     print(f"sending task to {ctx.worker.name}")
-    ctx.send(Message.from_task(ctx.task).as_json())
+    ctx.send(Message("tasks", ctx.task).as_json())
 
 
 @task_router.register(".complete")
