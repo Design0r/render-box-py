@@ -4,10 +4,11 @@ from typing import Any, Optional
 
 from render_box.server import db
 from render_box.server.job_manager import JobManager
+from render_box.server.state import AppState
 from render_box.shared.job import Job, JobState
 from render_box.shared.worker import WorkerState
 
-from ..server.connection import Connection
+from ..shared.connection import Connection
 from ..shared.message import Message, MessageRouter
 from ..shared.task import Task, TaskState
 from ..shared.worker import Worker
@@ -24,6 +25,7 @@ class ClientHandler:
         self.worker = Worker(len(self.job_manager.worker) + 1, "unknown")
         self.task: Optional[Task] = None
         self.job: Optional[Job] = None
+        self.state = AppState()
 
         ip, port = connection.socket.getpeername()
         self.client_ip = f"{ip}:{port}"

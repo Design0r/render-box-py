@@ -4,8 +4,8 @@ from random import randint
 from render_box.shared.job import Job
 from render_box.shared.task import Task
 
-from ..server.connection import Connection
 from ..shared.commands import TestCommand
+from ..shared.connection import Connection
 from ..shared.message import Message
 
 

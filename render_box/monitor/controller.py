@@ -1,4 +1,4 @@
-from render_box.server.connection import Connection
+from render_box.shared.connection import Connection
 from render_box.shared.message import Message
 from render_box.shared.serialize import SerializedJob, SerializedTask, SerializedWorker
 

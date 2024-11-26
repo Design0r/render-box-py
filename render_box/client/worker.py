@@ -2,7 +2,7 @@ import json
 import socket
 import time
 
-from ..server.connection import Connection
+from ..shared.connection import Connection
 from ..shared.message import Message
 from ..shared.task import Task
 from ..shared.worker import Worker
